@@ -1,0 +1,107 @@
+
+.dashboard {
+  min-height: 100vh;
+  background: #f5f7fb;
+  color: #263247;
+}
+
+.sidebar {
+  background: #ffffff;
+  border-right: 1px solid #e9edf4;
+}
+
+.logo {
+  color: #253650;
+  letter-spacing: -1px;
+}
+
+.logo span {
+  color: #7189d8;
+}
+
+.menuTitle {
+  color: #98a2b3;
+  letter-spacing: 1.5px;
+}
+
+.menuLink {
+  color: #697589;
+  transition: background-color 0.2s, color 0.2s;
+}
+
+.menuLink:hover {
+  background: #f3f5fb;
+  color: #425fbe;
+}
+
+.active {
+  background: #edf1ff;
+  color: #425fbe;
+  font-weight: 600;
+}
+
+.active:hover {
+  color: #304ba8;
+}
+
+.avatar {
+  width: 42px;
+  height: 42px;
+  flex-shrink: 0;
+  background: #e9edff;
+  color: #526ac2;
+}
+
+.main {
+  min-width: 0;
+}
+
+.breadcrumb {
+  color: #8994a6;
+}
+
+.welcome {
+  color: #ffffff;
+  background: linear-gradient(120deg, #526bc4, #8294e4);
+}
+
+.welcomeIcon {
+  width: 72px;
+  height: 72px;
+  flex-shrink: 0;
+  background: rgb(255 255 255 / 18%);
+  font-size: 36px;
+}
+
+.chart {
+  height: 240px;
+  padding-top: 12px;
+}
+
+.bar {
+  max-width: 34px;
+  min-height: 4px;
+  background: linear-gradient(180deg, #8c9ee9, #5874ce);
+  transition: filter 0.2s;
+}
+
+.bar:hover {
+  filter: brightness(0.9);
+}
+
+@media (min-width: 992px) {
+  .sidebar {
+    min-height: 100vh;
+  }
+}
+
+@media (max-width: 575.98px) {
+  .chart {
+    height: 190px;
+    gap: 4px !important;
+  }
+
+  .chart small {
+    font-size: 10px;
+  }
+}
