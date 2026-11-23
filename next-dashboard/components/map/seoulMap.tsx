@@ -1,10 +1,11 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import type { ExpressionSpecification, Map as MlMap } from "maplibre-gl";
+import type { ExpressionSpecification, GeoJSONSource, Map as MlMap } from "maplibre-gl";
 import "maplibre-gl/dist/maplibre-gl.css";
 import {
   POI_LAYERS,
+  formatDistance,
   formatMetric,
   getPois,
   getSubwayLines,
@@ -14,6 +15,7 @@ import {
   type DistrictFeature,
   type Metric,
   type PoiCategory,
+  type RadiusResult,
 } from "../../common/district";
 
 // API 키가 필요 없는 무료 배경지도 (OpenFreeMap)
@@ -93,7 +95,27 @@ type Props = {
   onPoiLoading?: (category: PoiCategory, loading: boolean) => void;
   /** 지도 위에 떠 있는 패널이 가리는 영역(px). 확대/이동 시 이 영역을 피해서 맞춘다 */
   padding?: MapPadding;
+  /** select: 클릭하면 구 선택 / analyze: 클릭한 지점으로 반경 분석 */
+  clickMode?: "select" | "analyze";
+  onAnalyze?: (lng: number, lat: number) => void;
+  /** 반경 분석 결과 (원, 중심점, 원 안 시설을 지도에 표시) */
+  analysis?: RadiusResult | null;
 };
+
+const EMPTY_FC: GeoJSON.FeatureCollection = { type: "FeatureCollection", features: [] };
+
+/** 반경 r(m) 원을 다각형으로 (서울 위도에서는 이 근사로 충분) */
+function circlePolygon([lng, lat]: [number, number], r: number, steps = 72): GeoJSON.Feature {
+  const dx = r / (111320 * Math.cos((lat * Math.PI) / 180));
+  const dy = r / 110540;
+  const ring = Array.from({ length: steps + 1 }, (_, i) => {
+    const a = (i / steps) * 2 * Math.PI;
+    return [lng + dx * Math.cos(a), lat + dy * Math.sin(a)];
+  });
+  return { type: "Feature", properties: {}, geometry: { type: "Polygon", coordinates: [ring] } };
+}
+
+const ANALYSIS_COLOR = { school: "#6f42c1", hospital: "#d63939", station: "#1f2a44" } as const;
 
 const NO_PADDING: MapPadding = { top: 16, right: 16, bottom: 16, left: 16 };
 
@@ -106,6 +128,9 @@ export default function SeoulMap({
   onSelect,
   onPoiLoading,
   padding = NO_PADDING,
+  clickMode = "select",
+  onAnalyze,
+  analysis = null,
 }: Props) {
   const containerRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<MlMap | null>(null);
@@ -114,6 +139,8 @@ export default function SeoulMap({
   const paddingRef = useRef(padding);
   const onSelectRef = useRef(onSelect);
   const onPoiLoadingRef = useRef(onPoiLoading);
+  const clickModeRef = useRef(clickMode);
+  const onAnalyzeRef = useRef(onAnalyze);
   const poiRequested = useRef(new Set<PoiCategory>());
   const [ready, setReady] = useState(false);
   const [loadedPois, setLoadedPois] = useState<PoiCategory[]>([]);
@@ -123,7 +150,9 @@ export default function SeoulMap({
     paddingRef.current = padding;
     onSelectRef.current = onSelect;
     onPoiLoadingRef.current = onPoiLoading;
-  }, [metric, padding, onSelect, onPoiLoading]);
+    clickModeRef.current = clickMode;
+    onAnalyzeRef.current = onAnalyze;
+  }, [metric, padding, onSelect, onPoiLoading, clickMode, onAnalyze]);
 
   // 지도 생성 (maplibre는 브라우저 전용이라 effect 안에서 동적 import)
   useEffect(() => {
@@ -207,6 +236,50 @@ export default function SeoulMap({
           },
         });
 
+        // 반경 분석 레이어 (맨 위). 데이터는 analysis가 바뀔 때 채운다
+        map.addSource("analysis-circle", { type: "geojson", data: EMPTY_FC });
+        map.addSource("analysis-places", { type: "geojson", data: EMPTY_FC });
+        map.addSource("analysis-center", { type: "geojson", data: EMPTY_FC });
+        map.addLayer({
+          id: "analysis-circle-fill",
+          type: "fill",
+          source: "analysis-circle",
+          paint: { "fill-color": "#425fbe", "fill-opacity": 0.1 },
+        });
+        map.addLayer({
+          id: "analysis-circle-line",
+          type: "line",
+          source: "analysis-circle",
+          paint: { "line-color": "#2b4396", "line-width": 2 },
+        });
+        map.addLayer({
+          id: "analysis-places",
+          type: "circle",
+          source: "analysis-places",
+          paint: {
+            "circle-color": [
+              "match", ["get", "category"],
+              "school", ANALYSIS_COLOR.school,
+              "hospital", ANALYSIS_COLOR.hospital,
+              "#ffffff",
+            ],
+            "circle-radius": ["case", ["==", ["get", "category"], "station"], 6, 4.5],
+            "circle-stroke-color": ["case", ["==", ["get", "category"], "station"], ANALYSIS_COLOR.station, "#ffffff"],
+            "circle-stroke-width": ["case", ["==", ["get", "category"], "station"], 2.5, 1.5],
+          },
+        });
+        map.addLayer({
+          id: "analysis-center",
+          type: "circle",
+          source: "analysis-center",
+          paint: {
+            "circle-color": "#1d2b64",
+            "circle-radius": 7,
+            "circle-stroke-color": "#ffffff",
+            "circle-stroke-width": 3,
+          },
+        });
+
         setReady(true);
       });
 
@@ -214,9 +287,11 @@ export default function SeoulMap({
       map.on("mousemove", (e) => {
         if (!map || !map.getLayer("district-fill")) return;
         const layers = [
+          "analysis-places",
           ...HOVER_LAYERS.filter((id) => map!.getLayer(id)),
           "district-fill",
         ];
+        const analyzing = clickModeRef.current === "analyze";
         const hits = map.queryRenderedFeatures(e.point, { layers });
         const district = hits.find((h) => h.layer.id === "district-fill");
         const newHover = district && typeof district.id === "number" ? district.id : null;
@@ -232,12 +307,12 @@ export default function SeoulMap({
         }
 
         const top = hits[0];
+        // 반경 분석 중에는 어디를 찍을지 보이도록 십자 커서
+        map.getCanvas().style.cursor = analyzing ? "crosshair" : top ? "pointer" : "";
         if (!top) {
-          map.getCanvas().style.cursor = "";
           popup.remove();
           return;
         }
-        map.getCanvas().style.cursor = "pointer";
 
         // 이름은 textContent로 넣어 HTML 해석을 피함
         const box = document.createElement("div");
@@ -257,6 +332,10 @@ export default function SeoulMap({
         } else if (top.layer.id === "subway-line") {
           title.textContent = String(top.properties.name);
           sub.textContent = "전철 노선";
+        } else if (top.layer.id === "analysis-places") {
+          const label = { school: "학교", hospital: "병원", station: "전철역" }[String(top.properties.category)] ?? "";
+          title.textContent = top.properties.name ? String(top.properties.name) : "(이름 없음)";
+          sub.textContent = `${label} · 중심에서 ${formatDistance(Number(top.properties.distanceM))}`;
         } else {
           title.textContent = top.properties.name ? String(top.properties.name) : "(이름 없음)";
           sub.textContent = POI_LABEL[String(top.properties.category)] ?? "";
@@ -276,6 +355,10 @@ export default function SeoulMap({
 
       map.on("click", (e) => {
         if (!map) return;
+        if (clickModeRef.current === "analyze") {
+          onAnalyzeRef.current?.(e.lngLat.lng, e.lngLat.lat);
+          return;
+        }
         const f = map.queryRenderedFeatures(e.point, { layers: ["district-fill"] })[0];
         onSelectRef.current(f ? String(f.properties.code) : null);
       });
@@ -432,6 +515,47 @@ export default function SeoulMap({
       });
     }
   }, [visiblePois, ready, loadedPois]);
+
+  // 반경 분석 결과 표시: 원 + 중심 + 원 안 시설, 그리고 원이 다 보이게 이동
+  useEffect(() => {
+    const map = mapRef.current;
+    if (!map || !ready) return;
+    const set = (id: string, d: GeoJSON.FeatureCollection) =>
+      (map.getSource(id) as GeoJSONSource | undefined)?.setData(d);
+
+    if (!analysis) {
+      set("analysis-circle", EMPTY_FC);
+      set("analysis-places", EMPTY_FC);
+      set("analysis-center", EMPTY_FC);
+      return;
+    }
+
+    const circle = circlePolygon(analysis.center, analysis.radius);
+    set("analysis-circle", { type: "FeatureCollection", features: [circle] });
+    set("analysis-center", {
+      type: "FeatureCollection",
+      features: [{ type: "Feature", properties: {}, geometry: { type: "Point", coordinates: analysis.center } }],
+    });
+    const point = (lng: number, lat: number, props: Record<string, unknown>): GeoJSON.Feature => ({
+      type: "Feature",
+      properties: props,
+      geometry: { type: "Point", coordinates: [lng, lat] },
+    });
+    set("analysis-places", {
+      type: "FeatureCollection",
+      features: [
+        ...analysis.places.map((p) => point(p.lng, p.lat, { category: p.category, name: p.name, distanceM: p.distanceM })),
+        ...analysis.stations.map((s) => point(s.lng, s.lat, { category: "station", name: `${s.name}역`, distanceM: s.distanceM })),
+      ],
+    });
+
+    const ring = (circle.geometry as GeoJSON.Polygon).coordinates[0];
+    const lngs = ring.map((c) => c[0]), lats = ring.map((c) => c[1]);
+    map.fitBounds(
+      [[Math.min(...lngs), Math.min(...lats)], [Math.max(...lngs), Math.max(...lats)]],
+      { padding: pad(padding, 24), duration: 700 },
+    );
+  }, [analysis, ready, padding]);
 
   // 선택된 구 강조 + 해당 구로 이동
   useEffect(() => {

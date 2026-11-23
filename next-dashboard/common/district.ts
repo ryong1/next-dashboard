@@ -159,3 +159,33 @@ export const POI_LAYERS: { key: PoiCategory; label: string; color: string }[] = 
   { key: "hospital", label: "병원", color: "#d63939" },
   { key: "park", label: "공원", color: "#2f9e44" },
 ];
+
+// ---------- 반경 분석 ----------
+
+export type RadiusPlace = {
+  category: "school" | "hospital" | "park" | "station";
+  name: string | null;
+  distanceM: number;
+  lng: number;
+  lat: number;
+};
+
+export type RadiusResult = {
+  center: [number, number];
+  radius: number;
+  district: DistrictRef | null;
+  circleAreaKm2: number;
+  counts: { station: number; school: number; hospital: number; park: number };
+  parkAreaKm2: number;
+  parkRatio: number;
+  stations: { name: string; lines: string[]; distanceM: number; lng: number; lat: number }[];
+  places: RadiusPlace[];
+  nearest: Partial<Record<RadiusPlace["category"], RadiusPlace>>;
+};
+
+export const RADIUS_OPTIONS = [500, 1000, 2000];
+
+export const getRadiusAnalysis = (lng: number, lat: number, r: number) =>
+  apiGet<RadiusResult>(`/api/analysis/radius?lng=${lng.toFixed(6)}&lat=${lat.toFixed(6)}&r=${r}`);
+
+export const formatDistance = (m: number) => (m >= 1000 ? `${(m / 1000).toFixed(1)}km` : `${m}m`);

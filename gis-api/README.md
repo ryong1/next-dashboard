@@ -33,6 +33,7 @@
 | GET | `/api/districts/locate?lng=&lat=` | 좌표가 속한 구 | `ST_Contains` |
 | GET | `/api/pois?category=` | 시설 위치 GeoJSON (`subway`, `school`, `hospital`, `park`) | `ST_Intersects`, `ST_SimplifyPreserveTopology` |
 | GET | `/api/subway/lines` | 수도권 전철 19개 노선 (1~9호선, 경의중앙, 공항, 신분당, 수인분당, 경춘, 서해, GTX-A, 우이신설, 신림, 김포골드) | `ST_LineMerge`, `ST_Intersection` |
+| GET | `/api/analysis/radius?lng=&lat=&r=` | 반경 분석 (r: 100~3000m): 구, 원 안 전철역·학교·병원·공원 수, 공원 면적 비율, 종류별 최근접 시설 | `ST_DWithin`, `ST_Buffer`, `ST_Intersection`, KNN `<->` |
 | GET | `/api/health` | 서버/DB 상태 (DB 연결 실패 시 503) | `postgis_lib_version` |
 | GET | `/api/subway/stations` | 지하철역 + 지나는 호선, 환승역 여부 | `ST_Collect`, `ST_Centroid`, `ST_DWithin` |
 

@@ -29,3 +29,8 @@ dependencies {
 tasks.named('test') {
 	useJUnitPlatform()
 }
+
+// 소스에 한글이 있어 컴파일 인코딩을 UTF-8로 고정 (Windows 기본값은 MS949)
+tasks.withType(JavaCompile).configureEach {
+	options.encoding = 'UTF-8'
+}

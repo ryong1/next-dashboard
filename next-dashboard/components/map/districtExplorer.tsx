@@ -5,12 +5,16 @@ import styles from "./explorer.module.css";
 import ServerErrorNotice from "../serverErrorNotice";
 import LineBadge from "../lineBadge";
 import SeoulMap, { classColors, type MapPadding } from "./seoulMap";
+import RadiusPanel from "./radiusPanel";
 import {
   METRICS,
   POI_LAYERS,
+  RADIUS_OPTIONS,
   SUBWAY_LINES,
+  formatDistance,
   formatMetric,
   getDistrictDetail,
+  getRadiusAnalysis,
   getDistricts,
   getDistrictSummary,
   metricOf,
@@ -20,7 +24,10 @@ import {
   type DistrictSummary,
   type MetricKey,
   type PoiCategory,
+  type RadiusResult,
 } from "../../common/district";
+
+const analysisKey = (point: [number, number], r: number) => `${point[0].toFixed(6)},${point[1].toFixed(6)},${r}`;
 
 // lg(992px) 이상이면 패널이 지도 위에 떠 있는 레이아웃
 const DESKTOP_QUERY = "(min-width: 992px)";
@@ -36,8 +43,8 @@ function useIsDesktop() {
   );
 }
 
-// 떠 있는 패널이 가리는 영역 (explorer.module.css의 크기와 맞춤)
-const DESKTOP_PADDING: MapPadding = { top: 210, right: 380, bottom: 32, left: 32 };
+// 떠 있는 패널이 가리는 영역 (explorer.module.css의 크기와 맞춤, 조작 카드가 두 줄이 되는 경우까지 고려)
+const DESKTOP_PADDING: MapPadding = { top: 260, right: 380, bottom: 32, left: 32 };
 const MOBILE_PADDING: MapPadding = { top: 16, right: 16, bottom: 16, left: 16 };
 
 export default function DistrictExplorer() {
@@ -51,6 +58,42 @@ export default function DistrictExplorer() {
   const [visiblePois, setVisiblePois] = useState<PoiCategory[]>([]);
   const [poiLoading, setPoiLoading] = useState<PoiCategory[]>([]);
   const isDesktop = useIsDesktop();
+
+  // 반경 분석
+  const [analyzeMode, setAnalyzeMode] = useState(false);
+  const [radius, setRadius] = useState(RADIUS_OPTIONS[0]);
+  const [point, setPoint] = useState<[number, number] | null>(null);
+  const [analysis, setAnalysis] = useState<RadiusResult | null>(null);
+  const [analysisFailedKey, setAnalysisFailedKey] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!point) return;
+    let ignore = false;
+    const key = analysisKey(point, radius);
+    getRadiusAnalysis(point[0], point[1], radius)
+      .then((r) => !ignore && setAnalysis(r))
+      .catch(() => !ignore && setAnalysisFailedKey(key));
+    return () => {
+      ignore = true;
+    };
+  }, [point, radius]);
+
+  const currentKey = point ? analysisKey(point, radius) : null;
+  const analysisFresh = !!(analysis && currentKey && analysisKey(analysis.center, analysis.radius) === currentKey);
+  const analysisFailed = !!currentKey && analysisFailedKey === currentKey;
+
+  const toggleAnalyze = () => {
+    if (analyzeMode) {
+      setAnalyzeMode(false);
+      setPoint(null);
+      setAnalysis(null);
+    } else {
+      setSelectedCode(null);
+      setAnalyzeMode(true);
+    }
+  };
+
+  const handleAnalyze = useCallback((lng: number, lat: number) => setPoint([lng, lat]), []);
 
   useEffect(() => {
     Promise.all([getDistricts(), getDistrictSummary()])
@@ -154,6 +197,9 @@ export default function DistrictExplorer() {
             selectedCode={selectedCode}
             onSelect={setSelectedCode}
             onPoiLoading={handlePoiLoading}
+            clickMode={analyzeMode ? "analyze" : "select"}
+            onAnalyze={handleAnalyze}
+            analysis={analyzeMode ? analysis : null}
             padding={isDesktop ? DESKTOP_PADDING : MOBILE_PADDING}
           />
         ) : (
@@ -260,12 +306,46 @@ export default function DistrictExplorer() {
               })}
             </div>
           </div>
+          <div>
+            <span className={styles.controlLabel}>공간 분석</span>
+            <div className="d-flex flex-wrap gap-1">
+              <button
+                type="button"
+                className={`${styles.segment} ${analyzeMode ? styles.segmentActive : ""}`}
+                aria-pressed={analyzeMode}
+                onClick={toggleAnalyze}
+              >
+                ◎ 반경 분석
+              </button>
+              {analyzeMode &&
+                RADIUS_OPTIONS.map((r) => (
+                  <button
+                    key={r}
+                    type="button"
+                    className={`${styles.segment} ${r === radius ? styles.segmentOn : ""}`}
+                    aria-pressed={r === radius}
+                    onClick={() => setRadius(r)}
+                  >
+                    {formatDistance(r)}
+                  </button>
+                ))}
+            </div>
+          </div>
         </section>
       </div>
 
       {/* ---------- 오른쪽 패널: 상세 또는 순위 ---------- */}
       <aside className={`${styles.glass} ${styles.panel}`}>
-        {selectedCode ? (
+        {analyzeMode ? (
+          <RadiusPanel
+            point={point}
+            radius={radius}
+            result={analysisFresh ? analysis : null}
+            loading={!!point && !analysisFresh && !analysisFailed}
+            error={analysisFailed}
+            onExit={toggleAnalyze}
+          />
+        ) : selectedCode ? (
           <>
             <button type="button" className={styles.backBtn} onClick={() => setSelectedCode(null)}>
               ← {metric.label} 순위로
