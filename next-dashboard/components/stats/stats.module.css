@@ -1,0 +1,207 @@
+/* ---- 핵심 지표 ---- */
+.kpiValue {
+  margin: 0 0 4px;
+  color: #1f2a44;
+  font-size: 1.75rem;
+  font-weight: 700;
+  line-height: 1.2;
+}
+
+.kpiUnit {
+  margin-left: 4px;
+  color: #6b7a99;
+  font-size: 0.85rem;
+  font-weight: 500;
+}
+
+/* ---- 지표 선택 ---- */
+.segment {
+  padding: 5px 12px;
+  border: 1px solid #e3e8f2;
+  border-radius: 999px;
+  background: #ffffff;
+  color: #4a5568;
+  font-size: 13px;
+}
+
+.segment:hover {
+  background: #f3f5fb;
+}
+
+.segmentActive,
+.segmentActive:hover {
+  border-color: #425fbe;
+  background: #425fbe;
+  color: #ffffff;
+}
+
+/* ---- 가로 막대 차트 ---- */
+.barChart {
+  --label-w: 104px;
+  --value-w: 48px;
+  position: relative;
+  padding-top: 22px; /* 평균선 라벨 자리 */
+}
+
+.barRow,
+.lineRow {
+  position: relative;
+  display: grid;
+  grid-template-columns: var(--label-w) 1fr var(--value-w);
+  align-items: center;
+  gap: 0;
+  min-height: 24px;
+  border-radius: 6px;
+  outline: none;
+}
+
+.barRowHover,
+.barRow:focus-visible {
+  background: #f3f5fb;
+}
+
+.barLabel,
+.lineLabel {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding-left: 4px;
+  color: #1f2a44;
+  font-size: 13px;
+  white-space: nowrap;
+}
+
+.rank {
+  width: 18px;
+  color: #98a2b3;
+  font-size: 11px;
+  font-weight: 600;
+  text-align: right;
+}
+
+.barTrack {
+  display: block;
+  height: 14px;
+}
+
+/* 4px 둥근 끝, 기준선 쪽은 각지게 */
+.bar {
+  display: block;
+  height: 100%;
+  min-width: 2px;
+  border-radius: 0 4px 4px 0;
+  transition: width 0.25s ease;
+}
+
+.barValue {
+  padding-left: 8px;
+  color: #4a5568;
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+}
+
+/* 서울 평균 기준선 */
+.avgLine {
+  position: absolute;
+  top: 16px;
+  bottom: 0;
+  z-index: 1;
+  width: 1px;
+  background: #1f2a44;
+  opacity: 0.55;
+  pointer-events: none;
+}
+
+.avgLabel {
+  position: absolute;
+  top: -16px;
+  left: 50%;
+  transform: translateX(-50%);
+  color: #4a5568;
+  font-size: 11px;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.tooltip {
+  position: absolute;
+  top: 100%;
+  left: var(--label-w);
+  z-index: 5;
+  min-width: 220px;
+  margin-top: 2px;
+  padding: 8px 10px;
+  border-radius: 10px;
+  background: #ffffff;
+  box-shadow: 0 6px 20px rgb(31 42 68 / 16%);
+  font-size: 12px;
+  pointer-events: none;
+}
+
+.key {
+  display: inline-block;
+  width: 12px;
+  height: 12px;
+  border-radius: 3px;
+}
+
+/* ---- 호선 ---- */
+.lineChart {
+  --label-w: 84px;
+  --value-w: 40px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.lineBadge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  color: #ffffff;
+  font-size: 10.5px;
+  font-weight: 700;
+  line-height: 1;
+}
+
+.station {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  padding: 3px 9px 3px 4px;
+  border: 1px solid #e6eaf2;
+  border-radius: 999px;
+  background: #ffffff;
+  color: #1f2a44;
+  font-size: 12px;
+}
+
+.station .lineBadge {
+  width: 16px;
+  height: 16px;
+  font-size: 9.5px;
+}
+
+/* ---- 표 ---- */
+.numTable td,
+.numTable th {
+  white-space: nowrap;
+}
+
+
+.numTable :global(.text-end) {
+  font-variant-numeric: tabular-nums;
+}
+
+@media (max-width: 575.98px) {
+  .barChart {
+    --label-w: 88px;
+  }
+
+  .tooltip {
+    left: 8px;
+  }
+}
