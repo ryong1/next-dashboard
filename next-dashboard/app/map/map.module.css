@@ -86,3 +86,109 @@
   border-radius: 3px;
   background: linear-gradient(90deg, #8c9ee9, #5874ce);
 }
+
+/* ---- 지도 상단 도구 막대 ---- */
+.toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: 12px 24px;
+  padding: 14px 16px;
+  border-bottom: 1px solid #edf0f6;
+  background: #ffffff;
+}
+
+.toolbarLabel {
+  display: block;
+  margin-bottom: 6px;
+  color: #98a2b3;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.5px;
+}
+
+.segment {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 12px;
+  border: 1px solid #e3e8f2;
+  border-radius: 999px;
+  background: #ffffff;
+  color: #4a5568;
+  font-size: 13px;
+  transition: background-color 0.15s, color 0.15s, border-color 0.15s;
+}
+
+.segment:hover {
+  background: #f3f5fb;
+}
+
+.segmentActive,
+.segmentActive:hover {
+  border-color: #425fbe;
+  background: #425fbe;
+  color: #ffffff;
+}
+
+.segmentOn,
+.segmentOn:hover {
+  border-color: #c9d3f0;
+  background: #edf1ff;
+  color: #2b4396;
+  font-weight: 600;
+}
+
+.dot {
+  display: inline-block;
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+}
+
+/* ---- 상세 패널 타일 ---- */
+.tileGrid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.tile {
+  padding: 10px;
+  border: 1px solid transparent;
+  border-radius: 12px;
+  background: #f6f8fc;
+  color: inherit;
+  text-align: left;
+  transition: border-color 0.15s, background-color 0.15s;
+}
+
+button.tile:hover {
+  border-color: #d5ddf3;
+}
+
+.tileActive {
+  border-color: #425fbe;
+  background: #edf1ff;
+}
+
+.tileRank {
+  display: block;
+  margin-top: 2px;
+  color: #6b7a99;
+  font-size: 11px;
+}
+
+.station {
+  padding: 2px 8px;
+  border-radius: 6px;
+  background: #fff1e6;
+  color: #b4470b;
+  font-size: 12px;
+}
+
+@media (max-width: 400px) {
+  .tileGrid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}

@@ -4,9 +4,13 @@ import { useEffect, useRef, useState } from "react";
 import type { ExpressionSpecification, Map as MlMap } from "maplibre-gl";
 import "maplibre-gl/dist/maplibre-gl.css";
 import {
-  AREA_STEPS,
+  POI_LAYERS,
+  formatMetric,
+  getPois,
   type DistrictCollection,
   type DistrictFeature,
+  type Metric,
+  type PoiCategory,
 } from "../../common/district";
 
 // API 키가 필요 없는 무료 배경지도 (OpenFreeMap)
@@ -29,35 +33,77 @@ function boundsOf(features: DistrictFeature[]): Bounds {
   return [[minX, minY], [maxX, maxY]];
 }
 
-// 면적 구간별 색: ["step", 면적, 색0, 경계1, 색1, ...]
-const fillColor = [
-  "step",
-  ["get", "areaKm2"],
-  AREA_STEPS[0].color,
-  ...AREA_STEPS.slice(1).flatMap((s) => [s.min, s.color]),
-] as ExpressionSpecification;
+/** 범례와 지도가 같은 색을 쓰도록: 구간 i의 색 */
+export function classColors(metric: Metric, breaks: number[]) {
+  return [metric.colors[0], ...breaks.map((_, i) => metric.colors[i + 1])];
+}
+
+// ["step", 값, 색0, 경계1, 색1, ...]
+function fillExpression(metric: Metric, breaks: number[]): ExpressionSpecification | string {
+  const colors = classColors(metric, breaks);
+  if (breaks.length === 0) return colors[0];
+  return [
+    "step",
+    ["get", metric.key],
+    colors[0],
+    ...breaks.flatMap((b, i) => [b, colors[i + 1]]),
+  ] as ExpressionSpecification;
+}
+
+// 구 이름 아래에 현재 지표 값 표시
+function labelExpression(metric: Metric): ExpressionSpecification {
+  return [
+    "concat",
+    ["get", "name"],
+    "\n",
+    ["to-string", ["get", metric.key]],
+    metric.unit === "%" ? "%" : "",
+  ];
+}
+
+const poiLayerId = (c: PoiCategory) => `poi-${c}`;
+const POI_LABEL = Object.fromEntries(POI_LAYERS.map((p) => [p.key, p.label]));
 
 type Props = {
   data: DistrictCollection;
+  metric: Metric;
+  breaks: number[];
+  visiblePois: PoiCategory[];
   selectedCode: string | null;
   onSelect: (code: string | null) => void;
+  onPoiLoading?: (category: PoiCategory, loading: boolean) => void;
 };
 
-export default function SeoulMap({ data, selectedCode, onSelect }: Props) {
+export default function SeoulMap({
+  data,
+  metric,
+  breaks,
+  visiblePois,
+  selectedCode,
+  onSelect,
+  onPoiLoading,
+}: Props) {
   const containerRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<MlMap | null>(null);
   const selectedIdRef = useRef<number | null>(null);
+  const metricRef = useRef(metric);
   const onSelectRef = useRef(onSelect);
+  const onPoiLoadingRef = useRef(onPoiLoading);
+  const poiRequested = useRef(new Set<PoiCategory>());
   const [ready, setReady] = useState(false);
+  const [loadedPois, setLoadedPois] = useState<PoiCategory[]>([]);
 
   useEffect(() => {
+    metricRef.current = metric;
     onSelectRef.current = onSelect;
-  }, [onSelect]);
+    onPoiLoadingRef.current = onPoiLoading;
+  }, [metric, onSelect, onPoiLoading]);
 
   // 지도 생성 (maplibre는 브라우저 전용이라 effect 안에서 동적 import)
   useEffect(() => {
     let cancelled = false;
     let map: MlMap | undefined;
+    const requested = poiRequested.current;
 
     (async () => {
       const ml = await import("maplibre-gl");
@@ -70,7 +116,10 @@ export default function SeoulMap({ data, selectedCode, onSelect }: Props) {
         style: BASE_STYLE,
         bounds: boundsOf(data.features),
         fitBoundsOptions: { padding: 24 },
-        attributionControl: { compact: true },
+        attributionControl: {
+          compact: true,
+          customAttribution: "시설 데이터 © OpenStreetMap contributors",
+        },
       });
       mapRef.current = map;
       map.addControl(new ml.NavigationControl({ showCompass: false }), "top-right");
@@ -80,6 +129,7 @@ export default function SeoulMap({ data, selectedCode, onSelect }: Props) {
 
       map.on("load", () => {
         if (!map) return;
+        const m = metricRef.current;
         map.addSource("districts", { type: "geojson", data });
 
         map.addLayer({
@@ -87,12 +137,12 @@ export default function SeoulMap({ data, selectedCode, onSelect }: Props) {
           type: "fill",
           source: "districts",
           paint: {
-            "fill-color": fillColor,
+            "fill-color": fillExpression(m, []),
             "fill-opacity": [
               "case",
               ["boolean", ["feature-state", "selected"], false], 0.92,
               ["boolean", ["feature-state", "hover"], false], 0.85,
-              0.68,
+              0.7,
             ],
           },
         });
@@ -119,9 +169,10 @@ export default function SeoulMap({ data, selectedCode, onSelect }: Props) {
           type: "symbol",
           source: "districts",
           layout: {
-            "text-field": ["get", "name"],
+            "text-field": labelExpression(m),
             "text-font": ["Noto Sans Regular"],
-            "text-size": 12,
+            "text-size": 11.5,
+            "text-line-height": 1.25,
           },
           paint: {
             "text-color": "#1f2a44",
@@ -133,34 +184,58 @@ export default function SeoulMap({ data, selectedCode, onSelect }: Props) {
         setReady(true);
       });
 
-      map.on("mousemove", "district-fill", (e) => {
-        const f = e.features?.[0];
-        if (!map || !f || typeof f.id !== "number") return;
-        if (hoveredId !== null && hoveredId !== f.id) {
-          map.setFeatureState({ source: "districts", id: hoveredId }, { hover: false });
+      // 마우스 아래 가장 위에 있는 대상(시설 > 구)의 정보를 팝업으로
+      map.on("mousemove", (e) => {
+        if (!map || !map.getLayer("district-fill")) return;
+        const layers = [
+          ...POI_LAYERS.map((p) => poiLayerId(p.key)).filter((id) => map!.getLayer(id)),
+          "district-fill",
+        ];
+        const hits = map.queryRenderedFeatures(e.point, { layers });
+        const district = hits.find((h) => h.layer.id === "district-fill");
+        const newHover = district && typeof district.id === "number" ? district.id : null;
+
+        if (hoveredId !== newHover) {
+          if (hoveredId !== null) {
+            map.setFeatureState({ source: "districts", id: hoveredId }, { hover: false });
+          }
+          if (newHover !== null) {
+            map.setFeatureState({ source: "districts", id: newHover }, { hover: true });
+          }
+          hoveredId = newHover;
         }
-        hoveredId = f.id;
-        map.setFeatureState({ source: "districts", id: hoveredId }, { hover: true });
+
+        const top = hits[0];
+        if (!top) {
+          map.getCanvas().style.cursor = "";
+          popup.remove();
+          return;
+        }
         map.getCanvas().style.cursor = "pointer";
 
         // 이름은 textContent로 넣어 HTML 해석을 피함
         const box = document.createElement("div");
         const title = document.createElement("strong");
-        title.textContent = String(f.properties.name);
-        const area = document.createElement("div");
-        area.className = "text-secondary small";
-        area.textContent = `면적 ${f.properties.areaKm2} km²`;
-        box.append(title, area);
+        const sub = document.createElement("div");
+        sub.className = "text-secondary small";
+        if (top.layer.id === "district-fill") {
+          const m = metricRef.current;
+          title.textContent = String(top.properties.name);
+          sub.textContent = `${m.label} ${formatMetric(m, Number(top.properties[m.key]))}`;
+        } else {
+          title.textContent = top.properties.name ? String(top.properties.name) : "(이름 없음)";
+          sub.textContent = POI_LABEL[String(top.properties.category)] ?? "";
+        }
+        box.append(title, sub);
         popup.setLngLat(e.lngLat).setDOMContent(box).addTo(map);
       });
 
-      map.on("mouseleave", "district-fill", () => {
+      map.on("mouseout", () => {
         if (!map) return;
         if (hoveredId !== null) {
           map.setFeatureState({ source: "districts", id: hoveredId }, { hover: false });
         }
         hoveredId = null;
-        map.getCanvas().style.cursor = "";
         popup.remove();
       });
 
@@ -175,9 +250,73 @@ export default function SeoulMap({ data, selectedCode, onSelect }: Props) {
       cancelled = true;
       map?.remove();
       mapRef.current = null;
+      requested.clear();
       setReady(false);
+      setLoadedPois([]);
     };
   }, [data]);
+
+  // 지표가 바뀌면 색과 라벨만 교체
+  useEffect(() => {
+    const map = mapRef.current;
+    if (!map || !ready) return;
+    map.setPaintProperty("district-fill", "fill-color", fillExpression(metric, breaks));
+    map.setLayoutProperty("district-label", "text-field", labelExpression(metric));
+  }, [metric, breaks, ready]);
+
+  // 시설 레이어: 처음 켤 때 API에서 받아 추가, 이후에는 표시/숨김만
+  useEffect(() => {
+    const map = mapRef.current;
+    if (!map || !ready) return;
+
+    for (const { key, color } of POI_LAYERS) {
+      const visible = visiblePois.includes(key);
+      const id = poiLayerId(key);
+
+      if (map.getLayer(id)) {
+        map.setLayoutProperty(id, "visibility", visible ? "visible" : "none");
+        continue;
+      }
+      if (!visible || poiRequested.current.has(key)) continue;
+
+      poiRequested.current.add(key);
+      onPoiLoadingRef.current?.(key, true);
+      getPois(key)
+        .then((geo) => {
+          if (mapRef.current !== map) return; // 그 사이 지도가 다시 만들어짐
+          map.addSource(id, { type: "geojson", data: geo });
+          if (key === "park") {
+            map.addLayer(
+              {
+                id,
+                type: "fill",
+                source: id,
+                paint: { "fill-color": color, "fill-opacity": 0.5, "fill-outline-color": "#1f7a35" },
+              },
+              "district-line",
+            );
+          } else {
+            map.addLayer(
+              {
+                id,
+                type: "circle",
+                source: id,
+                paint: {
+                  "circle-color": color,
+                  "circle-radius": ["interpolate", ["linear"], ["zoom"], 10, 2.5, 14, 6],
+                  "circle-stroke-color": "#ffffff",
+                  "circle-stroke-width": 1,
+                },
+              },
+              "district-label",
+            );
+          }
+          setLoadedPois((prev) => [...prev, key]);
+        })
+        .catch(() => poiRequested.current.delete(key))
+        .finally(() => onPoiLoadingRef.current?.(key, false));
+    }
+  }, [visiblePois, ready, loadedPois]);
 
   // 선택된 구 강조 + 해당 구로 이동
   useEffect(() => {

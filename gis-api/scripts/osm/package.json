@@ -1,0 +1,8 @@
+{
+  "name": "osm-data-scripts",
+  "private": true,
+  "description": "Overpass에서 받은 OSM 데이터를 gis-api용 GeoJSON으로 변환",
+  "dependencies": {
+    "osmtogeojson": "3.0.0-beta.5"
+  }
+}

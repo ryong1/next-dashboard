@@ -10,6 +10,8 @@ public record DistrictDetail(
         double areaKm2,
         double perimeterKm,
         double[] center,
+        DistrictStats stats,
+        List<String> subwayStations,
         List<Neighbor> neighbors) {
 
     public record Neighbor(String code, String name) {
