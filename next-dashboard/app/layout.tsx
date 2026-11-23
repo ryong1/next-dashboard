@@ -7,10 +7,10 @@ import Sidebar from "../components/sidebar";
 
 export const metadata: Metadata = {
   title: {
-    default: "test Dashboard",
+    default: "서울시 자치구 지도 | test Dashboard",
     template: "%s | test Dashboard",
   },
-  description: "Next.js 대시보드 연습 프로젝트",
+  description: "서울시 자치구 경계와 시설 데이터를 PostGIS로 분석해 보여주는 지도 대시보드",
 };
 
 export default function RootLayout({
@@ -21,17 +21,11 @@ export default function RootLayout({
   return (
     <html lang="ko">
       <body>
-        <div className={`container-fluid p-0 ${styles.dashboard}`}>
-          <div className="row g-0 min-vh-100">
-            <Sidebar />
+        <div className={styles.shell}>
+          <Sidebar />
 
-            {/* 메인 콘텐츠: 각 페이지가 여기에 렌더링됨 */}
-            <main
-              className={`col-12 col-lg-10 p-3 p-md-4 p-xl-5 ${styles.main}`}
-            >
-              {children}
-            </main>
-          </div>
+          {/* 메인 콘텐츠: 각 페이지가 여기에 렌더링됨 (여백은 페이지가 정함) */}
+          <main className={styles.main}>{children}</main>
         </div>
       </body>
     </html>

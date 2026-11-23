@@ -10,6 +10,10 @@ const nextConfig: NextConfig = {
   },
   cacheComponents: true,
   partialPrefetching: true,
+  // 지도가 메인(/)으로 옮겨져서 예전 주소는 메인으로 보낸다
+  async redirects() {
+    return [{ source: "/map", destination: "/", permanent: false }];
+  },
   async rewrites() {
     return [
       {

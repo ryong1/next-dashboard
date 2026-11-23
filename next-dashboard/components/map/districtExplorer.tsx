@@ -1,8 +1,8 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
-import styles from "../../app/map/map.module.css";
-import SeoulMap, { classColors } from "./seoulMap";
+import { useCallback, useEffect, useMemo, useState, useSyncExternalStore } from "react";
+import styles from "./explorer.module.css";
+import SeoulMap, { classColors, type MapPadding } from "./seoulMap";
 import {
   METRICS,
   POI_LAYERS,
@@ -19,6 +19,24 @@ import {
   type PoiCategory,
 } from "../../common/district";
 
+// lg(992px) 이상이면 패널이 지도 위에 떠 있는 레이아웃
+const DESKTOP_QUERY = "(min-width: 992px)";
+function useIsDesktop() {
+  return useSyncExternalStore(
+    (onChange) => {
+      const mq = window.matchMedia(DESKTOP_QUERY);
+      mq.addEventListener("change", onChange);
+      return () => mq.removeEventListener("change", onChange);
+    },
+    () => window.matchMedia(DESKTOP_QUERY).matches,
+    () => false,
+  );
+}
+
+// 떠 있는 패널이 가리는 영역 (explorer.module.css의 크기와 맞춤)
+const DESKTOP_PADDING: MapPadding = { top: 210, right: 380, bottom: 32, left: 32 };
+const MOBILE_PADDING: MapPadding = { top: 16, right: 16, bottom: 16, left: 16 };
+
 export default function DistrictExplorer() {
   const [data, setData] = useState<DistrictCollection | null>(null);
   const [summary, setSummary] = useState<DistrictSummary | null>(null);
@@ -28,6 +46,7 @@ export default function DistrictExplorer() {
   const [metricKey, setMetricKey] = useState<MetricKey>("areaKm2");
   const [visiblePois, setVisiblePois] = useState<PoiCategory[]>([]);
   const [poiLoading, setPoiLoading] = useState<PoiCategory[]>([]);
+  const isDesktop = useIsDesktop();
 
   useEffect(() => {
     Promise.all([getDistricts(), getDistrictSummary()])
@@ -81,30 +100,32 @@ export default function DistrictExplorer() {
 
   if (error) {
     return (
-      <div className="alert alert-warning rounded-4 border-0 shadow-sm">
-        <strong className="d-block mb-1">지도 데이터를 불러오지 못했어요</strong>
-        <span className="small">
-          백엔드(gis-api, http://localhost:8080)가 실행 중인지 확인해 주세요. ({error})
-        </span>
+      <div className="p-4">
+        <div className="alert alert-warning rounded-4 border-0 shadow-sm">
+          <strong className="d-block mb-1">지도 데이터를 불러오지 못했어요</strong>
+          <span className="small">
+            백엔드(gis-api, http://localhost:8080)가 실행 중인지 확인해 주세요. ({error})
+          </span>
+        </div>
       </div>
     );
   }
 
   const t = summary?.totals;
-  const stats = summary && t
+  const statChips = summary && t
     ? [
-        { label: "자치구", value: `${summary.count}개`, sub: `총면적 ${summary.totalAreaKm2} km²` },
-        { label: "지하철역", value: `${t.subway}개`, sub: "구별 합계 · OSM" },
-        { label: "학교", value: `${t.school.toLocaleString()}개`, sub: "초·중·고 등 · OSM" },
-        { label: "병원", value: `${t.hospital}개`, sub: "종합·일반병원 · OSM" },
-        { label: "공원", value: `${t.park.toLocaleString()}개`, sub: `면적 ${t.parkAreaKm2} km²` },
-        { label: "공원 면적 비율", value: `${t.parkRatio}%`, sub: "서울 면적 대비" },
+        { label: "자치구", value: `${summary.count}개` },
+        { label: "면적", value: `${summary.totalAreaKm2} km²` },
+        { label: "지하철역", value: `${t.subway}` },
+        { label: "학교", value: t.school.toLocaleString() },
+        { label: "병원", value: `${t.hospital}` },
+        { label: "공원 비율", value: `${t.parkRatio}%` },
       ]
     : [];
 
   const colors = classColors(metric, breaks);
+  const fmt = (v: number) => v.toLocaleString(undefined, { maximumFractionDigits: metric.decimals });
   const legend = colors.map((color, i) => {
-    const fmt = (v: number) => v.toLocaleString(undefined, { maximumFractionDigits: metric.decimals });
     let text = "전체";
     if (breaks.length) {
       if (i === 0) text = `${fmt(breaks[0])} 미만`;
@@ -115,253 +136,221 @@ export default function DistrictExplorer() {
   });
 
   return (
-    <>
-      {/* 요약 카드 */}
-      <section className="row g-3 mb-4">
-        {(stats.length ? stats : Array.from({ length: 6 }, () => null)).map((s, i) => (
-          <div className="col-6 col-md-4 col-xxl-2" key={s?.label ?? i}>
-            <article className="card h-100 border-0 shadow-sm rounded-4">
-              <div className="card-body p-3">
-                {s ? (
-                  <>
-                    <p className="text-secondary small mb-1">{s.label}</p>
-                    <h2 className="h4 fw-bold mb-1">{s.value}</h2>
-                    <small className="text-secondary">{s.sub}</small>
-                  </>
-                ) : (
-                  <div className="placeholder-glow">
-                    <span className="placeholder col-6 mb-3" />
-                    <span className="placeholder placeholder-lg col-8" />
-                  </div>
-                )}
-              </div>
-            </article>
+    <div className={styles.stage}>
+      {/* ---------- 지도 (화면 전체) ---------- */}
+      <div className={styles.mapArea}>
+        {data ? (
+          <SeoulMap
+            data={data}
+            metric={metric}
+            breaks={breaks}
+            visiblePois={visiblePois}
+            selectedCode={selectedCode}
+            onSelect={setSelectedCode}
+            onPoiLoading={handlePoiLoading}
+            padding={isDesktop ? DESKTOP_PADDING : MOBILE_PADDING}
+          />
+        ) : (
+          <div className="d-flex h-100 align-items-center justify-content-center text-secondary">
+            <div className="spinner-border spinner-border-sm me-2" role="status" />
+            지도 불러오는 중…
           </div>
-        ))}
-      </section>
+        )}
 
-      <section className="row g-4">
-        {/* 지도 */}
-        <div className="col-12 col-xl-8">
-          <article className="card border-0 shadow-sm rounded-4 overflow-hidden">
-            <div className={styles.toolbar}>
-              <div>
-                <span className={styles.toolbarLabel}>색칠 기준</span>
-                <div className="d-flex flex-wrap gap-1">
-                  {METRICS.map((m) => (
+        {/* 범례 */}
+        <div className={`${styles.glass} ${styles.legend}`}>
+          <strong className="d-block small mb-2">
+            {metric.label} <span className="text-secondary fw-normal">({metric.unit})</span>
+          </strong>
+          {legend.map((l) => (
+            <div key={l.text} className="d-flex align-items-center gap-2 small">
+              <span className={styles.swatch} style={{ background: l.color }} />
+              {l.text}
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {/* ---------- 왼쪽 위: 제목 + 요약 + 조작 ---------- */}
+      <div className={styles.topLeft}>
+        <section className={`${styles.glass} ${styles.titleCard}`}>
+          <p className={styles.eyebrow}>SEOUL · PostGIS + OpenStreetMap</p>
+          <h1 className={styles.title}>서울시 자치구 지도</h1>
+          <div className={styles.statChips}>
+            {statChips.length
+              ? statChips.map((s) => (
+                  <span key={s.label} className={styles.statChip}>
+                    <span className={styles.statLabel}>{s.label}</span>
+                    <strong>{s.value}</strong>
+                  </span>
+                ))
+              : Array.from({ length: 4 }, (_, i) => (
+                  <span key={i} className="placeholder-glow">
+                    <span className="placeholder rounded-pill" style={{ width: 80 }} />
+                  </span>
+                ))}
+          </div>
+        </section>
+
+        <section className={`${styles.glass} ${styles.controls}`}>
+          <div>
+            <span className={styles.controlLabel}>색칠 기준</span>
+            <div className="d-flex flex-wrap gap-1">
+              {METRICS.map((m) => (
+                <button
+                  key={m.key}
+                  type="button"
+                  className={`${styles.segment} ${m.key === metricKey ? styles.segmentActive : ""}`}
+                  aria-pressed={m.key === metricKey}
+                  onClick={() => setMetricKey(m.key)}
+                >
+                  {m.label}
+                </button>
+              ))}
+            </div>
+          </div>
+          <div>
+            <span className={styles.controlLabel}>시설 표시</span>
+            <div className="d-flex flex-wrap gap-1">
+              {POI_LAYERS.map((p) => {
+                const on = visiblePois.includes(p.key);
+                return (
+                  <button
+                    key={p.key}
+                    type="button"
+                    className={`${styles.segment} ${on ? styles.segmentOn : ""}`}
+                    aria-pressed={on}
+                    onClick={() => togglePoi(p.key)}
+                  >
+                    {poiLoading.includes(p.key) ? (
+                      <span className="spinner-border" style={{ width: 10, height: 10, borderWidth: 2 }} />
+                    ) : (
+                      <span className={styles.dot} style={{ background: p.color }} />
+                    )}
+                    {p.label}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+        </section>
+      </div>
+
+      {/* ---------- 오른쪽 패널: 상세 또는 순위 ---------- */}
+      <aside className={`${styles.glass} ${styles.panel}`}>
+        {selectedCode ? (
+          <>
+            <button type="button" className={styles.backBtn} onClick={() => setSelectedCode(null)}>
+              ← {metric.label} 순위로
+            </button>
+
+            {!shownDetail ? (
+              <div className="placeholder-glow mt-3">
+                <span className="placeholder col-5 mb-3" />
+                <span className="placeholder col-12" />
+                <span className="placeholder col-10" />
+              </div>
+            ) : (
+              <>
+                <p className="small text-secondary mb-1 mt-3">
+                  {shownDetail.nameEng} · {shownDetail.code}
+                </p>
+                <h2 className="h3 fw-bold mb-3">{shownDetail.name}</h2>
+
+                <div className={`mb-3 ${styles.tileGrid}`}>
+                  {[
+                    { key: "areaKm2" as const, label: "면적", value: `${shownDetail.areaKm2} km²` },
+                    { key: "subway" as const, label: "지하철역", value: `${shownDetail.stats.subway}개` },
+                    { key: "school" as const, label: "학교", value: `${shownDetail.stats.school}개` },
+                    { key: "hospital" as const, label: "병원", value: `${shownDetail.stats.hospital}개` },
+                    { key: "parkRatio" as const, label: "공원 비율", value: `${shownDetail.stats.parkRatio}%` },
+                  ].map((tile) => (
                     <button
-                      key={m.key}
+                      key={tile.key}
                       type="button"
-                      className={`${styles.segment} ${m.key === metricKey ? styles.segmentActive : ""}`}
-                      aria-pressed={m.key === metricKey}
-                      onClick={() => setMetricKey(m.key)}
+                      className={`${styles.tile} ${tile.key === metricKey ? styles.tileActive : ""}`}
+                      onClick={() => setMetricKey(tile.key)}
+                      title={`${tile.label} 기준으로 지도 색칠`}
                     >
-                      {m.label}
+                      <span className="d-block small text-secondary">{tile.label}</span>
+                      <strong className="d-block">{tile.value}</strong>
+                      <span className={styles.tileRank}>{rankOf(shownDetail.code, tile.key)}위 / 25</span>
+                    </button>
+                  ))}
+                  <div className={styles.tile}>
+                    <span className="d-block small text-secondary">둘레</span>
+                    <strong className="d-block">{shownDetail.perimeterKm} km</strong>
+                    <span className={styles.tileRank}>공원 {shownDetail.stats.park}곳</span>
+                  </div>
+                </div>
+
+                {shownDetail.subwayStations.length > 0 && (
+                  <>
+                    <p className="small text-secondary mb-2">
+                      지하철역 {shownDetail.subwayStations.length}곳
+                    </p>
+                    <div className="d-flex flex-wrap gap-1 mb-3">
+                      {shownDetail.subwayStations.map((s) => (
+                        <span key={s} className={styles.station}>
+                          {s}
+                        </span>
+                      ))}
+                    </div>
+                  </>
+                )}
+
+                <p className="small text-secondary mb-2">맞닿은 구 {shownDetail.neighbors.length}곳</p>
+                <div className="d-flex flex-wrap gap-2">
+                  {shownDetail.neighbors.map((n) => (
+                    <button
+                      key={n.code}
+                      type="button"
+                      className={`btn btn-sm rounded-pill ${styles.chip}`}
+                      onClick={() => setSelectedCode(n.code)}
+                    >
+                      {n.name}
                     </button>
                   ))}
                 </div>
-              </div>
-              <div>
-                <span className={styles.toolbarLabel}>시설 표시</span>
-                <div className="d-flex flex-wrap gap-1">
-                  {POI_LAYERS.map((p) => {
-                    const on = visiblePois.includes(p.key);
-                    return (
-                      <button
-                        key={p.key}
-                        type="button"
-                        className={`${styles.segment} ${on ? styles.segmentOn : ""}`}
-                        aria-pressed={on}
-                        onClick={() => togglePoi(p.key)}
-                      >
-                        {poiLoading.includes(p.key) ? (
-                          <span className="spinner-border" style={{ width: 10, height: 10, borderWidth: 2 }} />
-                        ) : (
-                          <span className={styles.dot} style={{ background: p.color }} />
-                        )}
-                        {p.label}
-                      </button>
-                    );
-                  })}
-                </div>
-              </div>
+              </>
+            )}
+          </>
+        ) : (
+          <>
+            <div className="d-flex align-items-baseline justify-content-between mb-1">
+              <h2 className="h5 fw-bold mb-0">{metric.label} 순위</h2>
+              <small className="text-secondary">25개 구</small>
             </div>
-
-            <div className={styles.mapWrap}>
-              {data ? (
-                <SeoulMap
-                  data={data}
-                  metric={metric}
-                  breaks={breaks}
-                  visiblePois={visiblePois}
-                  selectedCode={selectedCode}
-                  onSelect={setSelectedCode}
-                  onPoiLoading={handlePoiLoading}
-                />
-              ) : (
-                <div className="d-flex h-100 align-items-center justify-content-center text-secondary">
-                  <div className="spinner-border spinner-border-sm me-2" role="status" />
-                  지도 불러오는 중…
-                </div>
-              )}
-
-              {/* 범례 */}
-              <div className={styles.legend}>
-                <strong className="d-block small mb-2">
-                  {metric.label} ({metric.unit})
-                </strong>
-                {legend.map((l) => (
-                  <div key={l.text} className="d-flex align-items-center gap-2 small">
-                    <span className={styles.swatch} style={{ background: l.color }} />
-                    {l.text}
-                  </div>
-                ))}
-              </div>
-            </div>
-          </article>
-          <p className="small text-secondary mt-2 mb-0">
-            행정구역: 도로명주소 기반 서울시 구 경계(단순화) · 시설: © OpenStreetMap contributors
-            (2026-11 수집). 공원 면적 비율은 OSM 공원(leisure=park) 기준이라 산림·국립공원은 포함되지 않아요.
-          </p>
-        </div>
-
-        {/* 우측 패널 */}
-        <div className="col-12 col-xl-4 d-flex flex-column gap-4">
-          {/* 선택한 구 상세 */}
-          <article className="card border-0 shadow-sm rounded-4">
-            <div className="card-body p-4">
-              {!selectedCode && (
-                <>
-                  <h2 className="h5 fw-bold mb-2">구 상세 정보</h2>
-                  <p className="text-secondary small mb-0">
-                    지도에서 구를 클릭하거나 아래 순위에서 선택하세요.
-                  </p>
-                </>
-              )}
-
-              {selectedCode && !shownDetail && (
-                <div className="placeholder-glow">
-                  <span className="placeholder col-5 mb-3" />
-                  <span className="placeholder col-12" />
-                  <span className="placeholder col-10" />
-                </div>
-              )}
-
-              {shownDetail && (
-                <>
-                  <div className="d-flex align-items-start justify-content-between gap-2 mb-3">
-                    <div>
-                      <p className="small text-secondary mb-1">
-                        {shownDetail.nameEng} · {shownDetail.code}
-                      </p>
-                      <h2 className="h4 fw-bold mb-0">{shownDetail.name}</h2>
-                    </div>
-                    <button
-                      type="button"
-                      className="btn-close"
-                      aria-label="선택 해제"
-                      onClick={() => setSelectedCode(null)}
-                    />
-                  </div>
-
-                  <div className={`mb-3 ${styles.tileGrid}`}>
-                    {[
-                      { key: "areaKm2" as const, label: "면적", value: `${shownDetail.areaKm2} km²` },
-                      { key: "subway" as const, label: "지하철역", value: `${shownDetail.stats.subway}개` },
-                      { key: "school" as const, label: "학교", value: `${shownDetail.stats.school}개` },
-                      { key: "hospital" as const, label: "병원", value: `${shownDetail.stats.hospital}개` },
-                      { key: "parkRatio" as const, label: "공원 비율", value: `${shownDetail.stats.parkRatio}%` },
-                    ].map((tile) => (
-                      <button
-                        key={tile.key}
-                        type="button"
-                        className={`${styles.tile} ${tile.key === metricKey ? styles.tileActive : ""}`}
-                        onClick={() => setMetricKey(tile.key)}
-                        title={`${tile.label} 기준으로 지도 색칠`}
-                      >
-                        <span className="d-block small text-secondary">{tile.label}</span>
-                        <strong className="d-block">{tile.value}</strong>
-                        <span className={styles.tileRank}>{rankOf(shownDetail.code, tile.key)}위 / 25</span>
-                      </button>
-                    ))}
-                    <div className={styles.tile}>
-                      <span className="d-block small text-secondary">둘레</span>
-                      <strong className="d-block">{shownDetail.perimeterKm} km</strong>
-                      <span className={styles.tileRank}>공원 {shownDetail.stats.park}곳</span>
-                    </div>
-                  </div>
-
-                  {shownDetail.subwayStations.length > 0 && (
-                    <>
-                      <p className="small text-secondary mb-2">
-                        지하철역 {shownDetail.subwayStations.length}곳
-                      </p>
-                      <div className="d-flex flex-wrap gap-1 mb-3">
-                        {shownDetail.subwayStations.map((s) => (
-                          <span key={s} className={styles.station}>
-                            {s}
-                          </span>
-                        ))}
-                      </div>
-                    </>
-                  )}
-
-                  <p className="small text-secondary mb-2">
-                    맞닿은 구 {shownDetail.neighbors.length}곳
-                  </p>
-                  <div className="d-flex flex-wrap gap-2">
-                    {shownDetail.neighbors.map((n) => (
-                      <button
-                        key={n.code}
-                        type="button"
-                        className={`btn btn-sm rounded-pill ${styles.chip}`}
-                        onClick={() => setSelectedCode(n.code)}
-                      >
-                        {n.name}
-                      </button>
-                    ))}
-                  </div>
-                </>
-              )}
-            </div>
-          </article>
-
-          {/* 지표 순위 */}
-          <article className="card border-0 shadow-sm rounded-4 flex-grow-1">
-            <div className="card-body p-4">
-              <h2 className="h5 fw-bold mb-3">{metric.label} 순위</h2>
-              <ol className={`list-unstyled mb-0 ${styles.rankList}`}>
-                {ranking.map((d, i) => (
-                  <li key={d.code}>
-                    <button
-                      type="button"
-                      className={`${styles.rankItem} ${d.code === selectedCode ? styles.rankActive : ""}`}
-                      onClick={() => setSelectedCode(d.code)}
-                    >
-                      <span className={styles.rankNo}>{i + 1}</span>
-                      <span className="flex-grow-1 text-start">
-                        <span className="d-flex justify-content-between small mb-1">
-                          <span className="fw-semibold">{d.name}</span>
-                          <span className="text-secondary">{formatMetric(metric, d[metricKey])}</span>
-                        </span>
-                        <span className={styles.rankTrack}>
-                          <span
-                            className={styles.rankBar}
-                            style={{
-                              width: `${(d[metricKey] / maxValue) * 100}%`,
-                              background: metric.colors[3],
-                            }}
-                          />
-                        </span>
+            <p className="small text-secondary mb-3">구를 클릭하면 상세 정보를 볼 수 있어요.</p>
+            <ol className={`list-unstyled mb-0 ${styles.rankList}`}>
+              {ranking.map((d, i) => (
+                <li key={d.code}>
+                  <button type="button" className={styles.rankItem} onClick={() => setSelectedCode(d.code)}>
+                    <span className={styles.rankNo}>{i + 1}</span>
+                    <span className="flex-grow-1 text-start">
+                      <span className="d-flex justify-content-between small mb-1">
+                        <span className="fw-semibold">{d.name}</span>
+                        <span className="text-secondary">{formatMetric(metric, d[metricKey])}</span>
                       </span>
-                    </button>
-                  </li>
-                ))}
-              </ol>
-            </div>
-          </article>
-        </div>
-      </section>
-    </>
+                      <span className={styles.rankTrack}>
+                        <span
+                          className={styles.rankBar}
+                          style={{ width: `${(d[metricKey] / maxValue) * 100}%`, background: metric.colors[3] }}
+                        />
+                      </span>
+                    </span>
+                  </button>
+                </li>
+              ))}
+            </ol>
+          </>
+        )}
+
+        <p className={styles.note}>
+          행정구역: 도로명주소 기반 구 경계(단순화) · 시설: © OpenStreetMap contributors (2026-11).
+          공원 비율은 OSM 공원(leisure=park) 기준이라 산림·국립공원은 빠져 있어요.
+        </p>
+      </aside>
+    </div>
   );
 }

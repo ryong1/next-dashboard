@@ -5,12 +5,9 @@ import { usePathname } from "next/navigation";
 import styles from "../app/page.module.css";
 
 const menuItems = [
-  { icon: "▦", label: "대시보드", href: "/" },
-  { icon: "◎", label: "지도 분석", href: "/map" },
+  { icon: "◎", label: "지도 대시보드", href: "/" },
   { icon: "▤", label: "프로젝트", href: "/projects" },
-  { icon: "♙", label: "사용자 관리", href: "/users" },
   { icon: "▧", label: "통계 분석", href: "/statistics" },
-  { icon: "⚙", label: "설정", href: "/settings" },
 ];
 
 function isActive(pathname: string, href: string) {
@@ -22,7 +19,7 @@ export default function SidebarNav() {
   const pathname = usePathname();
 
   return (
-    <nav className="nav flex-column gap-2">
+    <nav className={`nav flex-nowrap flex-lg-column gap-1 gap-lg-2 ${styles.nav}`}>
       {menuItems.map((item) => {
         const active = isActive(pathname, item.href);
 
@@ -31,7 +28,7 @@ export default function SidebarNav() {
             key={item.href}
             href={item.href}
             aria-current={active ? "page" : undefined}
-            className={`nav-link d-flex align-items-center gap-3 rounded-3 ${
+            className={`nav-link d-flex align-items-center gap-2 gap-lg-3 rounded-3 text-nowrap ${
               active ? styles.active : styles.menuLink
             }`}
           >

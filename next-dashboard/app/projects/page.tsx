@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import PageHeader from "../../components/pageHeader";
+import styles from "../page.module.css";
 
 export const metadata: Metadata = { title: "프로젝트" };
 
@@ -18,7 +19,7 @@ const statusBadge: Record<string, string> = {
 
 export default function ProjectsPage() {
   return (
-    <>
+    <div className={styles.page}>
       <PageHeader title="프로젝트" breadcrumb="Workspace / Projects" />
 
       <article className="card border-0 shadow-sm rounded-4">
@@ -71,6 +72,6 @@ export default function ProjectsPage() {
           </div>
         </div>
       </article>
-    </>
+    </div>
   );
 }

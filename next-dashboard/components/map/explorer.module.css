@@ -1,0 +1,363 @@
+/*
+ * 지도 중심 레이아웃
+ * - 모바일: 제목/조작 → 지도 → 패널 순서로 세로 배치
+ * - 데스크톱(992px~): 지도가 화면 전체, 나머지는 지도 위에 떠 있는 카드
+ *   (카드 크기를 바꾸면 districtExplorer.tsx의 DESKTOP_PADDING도 함께 조정)
+ */
+
+.stage {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding-bottom: 16px;
+}
+
+.mapArea {
+  position: relative;
+  order: 2;
+  height: 62vh;
+  min-height: 380px;
+  background: #e9edf4;
+}
+
+.topLeft {
+  order: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 12px 12px 0;
+}
+
+.panel {
+  order: 3;
+  margin: 0 12px;
+}
+
+/* 반투명 카드 */
+.glass {
+  border: 1px solid rgb(255 255 255 / 70%);
+  border-radius: 16px;
+  background: rgb(255 255 255 / 92%);
+  box-shadow: 0 8px 28px rgb(31 42 68 / 12%);
+  backdrop-filter: blur(10px);
+}
+
+/* ---- 제목 카드 ---- */
+.titleCard {
+  padding: 16px 18px;
+}
+
+.eyebrow {
+  margin: 0 0 4px;
+  color: #6680d4;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 1.2px;
+}
+
+.title {
+  margin: 0 0 12px;
+  color: #1f2a44;
+  font-size: 1.4rem;
+  font-weight: 800;
+  letter-spacing: -0.5px;
+}
+
+.statChips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.statChip {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 6px;
+  padding: 4px 10px;
+  border-radius: 999px;
+  background: #f1f4fb;
+  font-size: 13px;
+}
+
+.statLabel {
+  color: #6b7a99;
+  font-size: 12px;
+}
+
+/* ---- 조작 카드 ---- */
+.controls {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 14px 16px;
+}
+
+.controlLabel {
+  display: block;
+  margin-bottom: 6px;
+  color: #98a2b3;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.5px;
+}
+
+.segment {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 12px;
+  border: 1px solid #e3e8f2;
+  border-radius: 999px;
+  background: #ffffff;
+  color: #4a5568;
+  font-size: 13px;
+  transition: background-color 0.15s, color 0.15s, border-color 0.15s;
+}
+
+.segment:hover {
+  background: #f3f5fb;
+}
+
+.segmentActive,
+.segmentActive:hover {
+  border-color: #425fbe;
+  background: #425fbe;
+  color: #ffffff;
+}
+
+.segmentOn,
+.segmentOn:hover {
+  border-color: #c9d3f0;
+  background: #edf1ff;
+  color: #2b4396;
+  font-weight: 600;
+}
+
+.dot {
+  display: inline-block;
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+}
+
+/* ---- 범례 ---- */
+.legend {
+  position: absolute;
+  left: 12px;
+  bottom: 12px;
+  z-index: 2;
+  padding: 12px 14px;
+  pointer-events: none;
+}
+
+.swatch {
+  display: inline-block;
+  width: 14px;
+  height: 14px;
+  border-radius: 4px;
+}
+
+/* ---- 오른쪽 패널 ---- */
+.panel {
+  padding: 18px;
+}
+
+.backBtn {
+  padding: 4px 10px;
+  border: 0;
+  border-radius: 8px;
+  background: #f1f4fb;
+  color: #425fbe;
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.backBtn:hover {
+  background: #e4e9f8;
+}
+
+.note {
+  margin: 16px 0 0;
+  padding-top: 12px;
+  border-top: 1px solid #edf0f6;
+  color: #98a2b3;
+  font-size: 11px;
+  line-height: 1.5;
+}
+
+.chip {
+  background: #edf1ff;
+  color: #3b55b0;
+  border: 0;
+}
+
+.chip:hover {
+  background: #dce4ff;
+  color: #2b4396;
+}
+
+.tileGrid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.tile {
+  padding: 10px;
+  border: 1px solid transparent;
+  border-radius: 12px;
+  background: #f4f6fb;
+  color: inherit;
+  text-align: left;
+  transition: border-color 0.15s, background-color 0.15s;
+}
+
+button.tile:hover {
+  border-color: #d5ddf3;
+}
+
+.tileActive {
+  border-color: #425fbe;
+  background: #edf1ff;
+}
+
+.tileRank {
+  display: block;
+  margin-top: 2px;
+  color: #6b7a99;
+  font-size: 11px;
+}
+
+.station {
+  padding: 2px 8px;
+  border-radius: 6px;
+  background: #fff1e6;
+  color: #b4470b;
+  font-size: 12px;
+}
+
+.rankList {
+  max-height: 360px;
+  overflow-y: auto;
+}
+
+.rankItem {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  padding: 7px 8px;
+  border: 0;
+  border-radius: 10px;
+  background: transparent;
+  color: inherit;
+  transition: background-color 0.15s;
+}
+
+.rankItem:hover {
+  background: #f1f4fb;
+}
+
+.rankNo {
+  width: 22px;
+  flex-shrink: 0;
+  color: #98a2b3;
+  font-size: 12px;
+  font-weight: 600;
+  text-align: center;
+}
+
+.rankTrack {
+  display: block;
+  height: 6px;
+  border-radius: 3px;
+  background: #eef1f7;
+  overflow: hidden;
+}
+
+.rankBar {
+  display: block;
+  height: 100%;
+  border-radius: 3px;
+}
+
+@media (max-width: 400px) {
+  .tileGrid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+/* ---------- 데스크톱: 지도 위에 카드를 띄움 ---------- */
+@media (min-width: 992px) {
+  .stage {
+    position: relative;
+    display: block;
+    height: 100vh;
+    padding: 0;
+    overflow: hidden;
+  }
+
+  .mapArea {
+    position: absolute;
+    inset: 0;
+    height: auto;
+    min-height: 0;
+  }
+
+  .topLeft {
+    position: absolute;
+    top: 16px;
+    left: 16px;
+    z-index: 3;
+    width: min(620px, calc(100% - 400px));
+    padding: 0;
+    pointer-events: none;
+  }
+
+  .topLeft > * {
+    pointer-events: auto;
+  }
+
+  .titleCard {
+    padding: 16px 20px;
+  }
+
+  .title {
+    font-size: 1.6rem;
+  }
+
+  .controls {
+    flex-direction: row;
+    flex-wrap: wrap;
+    gap: 12px 24px;
+  }
+
+  .legend {
+    left: 16px;
+    bottom: 16px;
+  }
+
+  .panel {
+    position: absolute;
+    top: 16px;
+    right: 16px;
+    bottom: 16px;
+    z-index: 3;
+    display: flex;
+    flex-direction: column;
+    width: 348px;
+    margin: 0;
+    overflow-y: auto;
+  }
+
+  .rankList {
+    flex: 1;
+    max-height: none;
+    overflow: visible;
+  }
+
+  /* 패널에 가리지 않도록 지도 컨트롤(확대/축소, 출처)을 왼쪽으로 */
+  .mapArea :global(.maplibregl-ctrl-bottom-right) {
+    right: 372px;
+  }
+}

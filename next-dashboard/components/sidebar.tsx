@@ -5,22 +5,20 @@ import SidebarNav from "./sidebarNav";
 
 export default function Sidebar() {
   return (
-    <aside
-      className={`col-12 col-lg-2 d-flex flex-column p-4 ${styles.sidebar}`}
-    >
+    <aside className={`d-flex flex-column ${styles.sidebar}`}>
       <Link href="/" className="text-decoration-none">
-        <h2 className={`fw-bold mb-5 ${styles.logo}`}>
+        <h2 className={`fw-bold mb-0 mb-lg-5 ${styles.logo}`}>
           NEXT<span>.</span>
         </h2>
       </Link>
 
-      <p className={`small fw-semibold mb-3 ${styles.menuTitle}`}>
+      <p className={`small fw-semibold mb-3 d-none d-lg-block ${styles.menuTitle}`}>
         WORKSPACE
       </p>
 
       <SidebarNav />
 
-      <div className="d-flex align-items-center gap-3 mt-auto pt-5">
+      <div className="d-none d-lg-flex align-items-center gap-3 mt-auto pt-5">
         <div
           className={`rounded-circle d-flex align-items-center justify-content-center fw-bold ${styles.avatar}`}
         >

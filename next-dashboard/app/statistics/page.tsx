@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import PageHeader from "../../components/pageHeader";
+import styles from "../page.module.css";
 
 export const metadata: Metadata = { title: "통계 분석" };
 
@@ -18,7 +19,7 @@ const channels = [
 
 export default function StatisticsPage() {
   return (
-    <>
+    <div className={styles.page}>
       <PageHeader title="통계 분석" breadcrumb="Workspace / Statistics" />
 
       <section className="row g-3 mb-4">
@@ -60,6 +61,6 @@ export default function StatisticsPage() {
           </div>
         </div>
       </article>
-    </>
+    </div>
   );
 }

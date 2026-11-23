@@ -1,18 +1,42 @@
-
-.dashboard {
+/* 앱 전체 틀: 사이드바 + 메인 */
+.shell {
+  display: flex;
+  flex-direction: column;
   min-height: 100vh;
   background: #f5f7fb;
   color: #263247;
 }
 
+.main {
+  flex: 1;
+  min-width: 0;
+}
+
+/* 일반 페이지(프로젝트, 통계) 여백. 지도 화면은 여백 없이 꽉 채운다 */
+.page {
+  padding: 16px;
+}
+
+/* ---- 사이드바 ---- */
 .sidebar {
+  /* 모바일: 위쪽 얇은 가로 막대 */
+  flex-direction: row !important;
+  align-items: center;
+  gap: 16px;
+  padding: 10px 16px;
   background: #ffffff;
-  border-right: 1px solid #e9edf4;
+  border-bottom: 1px solid #e9edf4;
+}
+
+.nav {
+  overflow-x: auto;
+  scrollbar-width: none;
 }
 
 .logo {
   color: #253650;
   letter-spacing: -1px;
+  font-size: 22px;
 }
 
 .logo span {
@@ -52,56 +76,41 @@
   color: #526ac2;
 }
 
-.main {
-  min-width: 0;
-}
-
-.breadcrumb {
-  color: #8994a6;
-}
-
-.welcome {
-  color: #ffffff;
-  background: linear-gradient(120deg, #526bc4, #8294e4);
-}
-
-.welcomeIcon {
-  width: 72px;
-  height: 72px;
-  flex-shrink: 0;
-  background: rgb(255 255 255 / 18%);
-  font-size: 36px;
-}
-
-.chart {
-  height: 240px;
-  padding-top: 12px;
-}
-
-.bar {
-  max-width: 34px;
-  min-height: 4px;
-  background: linear-gradient(180deg, #8c9ee9, #5874ce);
-  transition: filter 0.2s;
-}
-
-.bar:hover {
-  filter: brightness(0.9);
+@media (min-width: 768px) {
+  .page {
+    padding: 24px;
+  }
 }
 
 @media (min-width: 992px) {
+  .shell {
+    flex-direction: row;
+  }
+
   .sidebar {
-    min-height: 100vh;
+    position: sticky;
+    top: 0;
+    flex: 0 0 220px;
+    flex-direction: column !important;
+    align-items: stretch;
+    gap: 0;
+    height: 100vh;
+    padding: 24px 16px;
+    border-right: 1px solid #e9edf4;
+    border-bottom: 0;
+  }
+
+  .logo {
+    font-size: calc(1.325rem + 0.9vw);
+  }
+
+  .page {
+    padding: 40px;
   }
 }
 
-@media (max-width: 575.98px) {
-  .chart {
-    height: 190px;
-    gap: 4px !important;
-  }
-
-  .chart small {
-    font-size: 10px;
+@media (min-width: 1200px) {
+  .logo {
+    font-size: 2rem;
   }
 }

@@ -18,6 +18,16 @@ const BASE_STYLE = "https://tiles.openfreemap.org/styles/positron";
 
 type Bounds = [[number, number], [number, number]];
 
+/** 지도 가장자리 여백(px) */
+export type MapPadding = { top: number; right: number; bottom: number; left: number };
+
+const pad = (p: MapPadding, extra: number): MapPadding => ({
+  top: p.top + extra,
+  right: p.right + extra,
+  bottom: p.bottom + extra,
+  left: p.left + extra,
+});
+
 function boundsOf(features: DistrictFeature[]): Bounds {
   let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
   for (const f of features) {
@@ -72,7 +82,11 @@ type Props = {
   selectedCode: string | null;
   onSelect: (code: string | null) => void;
   onPoiLoading?: (category: PoiCategory, loading: boolean) => void;
+  /** 지도 위에 떠 있는 패널이 가리는 영역(px). 확대/이동 시 이 영역을 피해서 맞춘다 */
+  padding?: MapPadding;
 };
+
+const NO_PADDING: MapPadding = { top: 16, right: 16, bottom: 16, left: 16 };
 
 export default function SeoulMap({
   data,
@@ -82,11 +96,13 @@ export default function SeoulMap({
   selectedCode,
   onSelect,
   onPoiLoading,
+  padding = NO_PADDING,
 }: Props) {
   const containerRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<MlMap | null>(null);
   const selectedIdRef = useRef<number | null>(null);
   const metricRef = useRef(metric);
+  const paddingRef = useRef(padding);
   const onSelectRef = useRef(onSelect);
   const onPoiLoadingRef = useRef(onPoiLoading);
   const poiRequested = useRef(new Set<PoiCategory>());
@@ -95,9 +111,10 @@ export default function SeoulMap({
 
   useEffect(() => {
     metricRef.current = metric;
+    paddingRef.current = padding;
     onSelectRef.current = onSelect;
     onPoiLoadingRef.current = onPoiLoading;
-  }, [metric, onSelect, onPoiLoading]);
+  }, [metric, padding, onSelect, onPoiLoading]);
 
   // 지도 생성 (maplibre는 브라우저 전용이라 effect 안에서 동적 import)
   useEffect(() => {
@@ -115,14 +132,14 @@ export default function SeoulMap({
         container: containerRef.current,
         style: BASE_STYLE,
         bounds: boundsOf(data.features),
-        fitBoundsOptions: { padding: 24 },
+        fitBoundsOptions: { padding: paddingRef.current },
         attributionControl: {
           compact: true,
           customAttribution: "시설 데이터 © OpenStreetMap contributors",
         },
       });
       mapRef.current = map;
-      map.addControl(new ml.NavigationControl({ showCompass: false }), "top-right");
+      map.addControl(new ml.NavigationControl({ showCompass: false }), "bottom-right");
 
       const popup = new ml.Popup({ closeButton: false, closeOnClick: false, offset: 10 });
       let hoveredId: number | null = null;
@@ -274,7 +291,9 @@ export default function SeoulMap({
       const id = poiLayerId(key);
 
       if (map.getLayer(id)) {
-        map.setLayoutProperty(id, "visibility", visible ? "visible" : "none");
+        for (const layer of [id, `${id}-label`]) {
+          if (map.getLayer(layer)) map.setLayoutProperty(layer, "visibility", visible ? "visible" : "none");
+        }
         continue;
       }
       if (!visible || poiRequested.current.has(key)) continue;
@@ -303,13 +322,39 @@ export default function SeoulMap({
                 source: id,
                 paint: {
                   "circle-color": color,
-                  "circle-radius": ["interpolate", ["linear"], ["zoom"], 10, 2.5, 14, 6],
+                  "circle-radius": [
+                    "interpolate", ["linear"], ["zoom"],
+                    10, key === "subway" ? 3.5 : 2.5,
+                    14, key === "subway" ? 7 : 6,
+                  ],
                   "circle-stroke-color": "#ffffff",
                   "circle-stroke-width": 1,
                 },
               },
               "district-label",
             );
+          }
+          // 지하철역은 확대하면 역 이름도 표시 (겹치는 이름은 자동으로 하나만)
+          if (key === "subway") {
+            map.addLayer({
+              id: `${id}-label`,
+              type: "symbol",
+              source: id,
+              minzoom: 12,
+              layout: {
+                "text-field": ["get", "name"],
+                "text-font": ["Noto Sans Regular"],
+                "text-size": ["interpolate", ["linear"], ["zoom"], 12, 10.5, 15, 13],
+                "text-offset": [0, 0.9],
+                "text-anchor": "top",
+                "text-padding": 4,
+              },
+              paint: {
+                "text-color": "#a3420b",
+                "text-halo-color": "rgba(255,255,255,0.95)",
+                "text-halo-width": 1.5,
+              },
+            });
           }
           setLoadedPois((prev) => [...prev, key]);
         })
@@ -332,11 +377,11 @@ export default function SeoulMap({
 
     if (feature) {
       map.setFeatureState({ source: "districts", id: feature.id }, { selected: true });
-      map.fitBounds(boundsOf([feature]), { padding: 80, maxZoom: 13, duration: 700 });
+      map.fitBounds(boundsOf([feature]), { padding: pad(padding, 48), maxZoom: 13, duration: 700 });
     } else {
-      map.fitBounds(boundsOf(data.features), { padding: 24, duration: 700 });
+      map.fitBounds(boundsOf(data.features), { padding, duration: 700 });
     }
-  }, [selectedCode, ready, data]);
+  }, [selectedCode, ready, data, padding]);
 
   return <div ref={containerRef} className="w-100 h-100" />;
 }
