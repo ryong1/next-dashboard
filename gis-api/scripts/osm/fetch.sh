@@ -15,4 +15,5 @@ q subway   'node["railway"="station"]["station"="subway"](area.s);out body;'
 q school   'nwr["amenity"="school"](area.s);out center tags;'
 q hospital 'nwr["amenity"="hospital"](area.s);out center tags;'
 q park     '(way["leisure"="park"](area.s);relation["leisure"="park"](area.s););out geom;'
+q subway_line 'relation["route"="subway"](area.s);out geom;'
 node convert.js "$RAW" "$OUT"

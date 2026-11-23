@@ -28,3 +28,30 @@ const parks = gj.features
 fs.writeFileSync(path.join(out, "park.geojson"), JSON.stringify({ type: "FeatureCollection", features: parks }));
 const types = {}; gj.features.forEach((f) => (types[f.geometry?.type] = (types[f.geometry?.type] || 0) + 1));
 console.log("park", parks.length, "geometry types in source:", JSON.stringify(types));
+
+// ---- 지하철 노선 (route=subway 관계 → 호선별 MultiLineString) ----
+// 같은 호선이 운행 계통/방향별로 여러 관계로 나뉘어 있어서, 호선(ref)별로 선로(way)를 모아 중복 제거한다.
+const lineFile = path.join(raw, "subway_line.json");
+if (fs.existsSync(lineFile)) {
+  const rels = JSON.parse(fs.readFileSync(lineFile, "utf8")).elements.filter((e) => e.type === "relation");
+  const lines = new Map(); // ref -> { colour, ways: Map(wayId -> coords) }
+  for (const r of rels) {
+    const ref = r.tags?.ref;
+    if (!/^[1-9]$/.test(ref ?? "")) continue; // 1~9호선만
+    if (!lines.has(ref)) lines.set(ref, { colour: r.tags.colour, ways: new Map() });
+    const line = lines.get(ref);
+    for (const m of r.members) {
+      if (m.type !== "way" || !m.geometry || m.role === "platform") continue;
+      if (!line.ways.has(m.ref)) line.ways.set(m.ref, m.geometry.map((p) => [r6(p.lon), r6(p.lat)]));
+    }
+  }
+  const features = [...lines.entries()]
+    .sort(([a], [b]) => Number(a) - Number(b))
+    .map(([ref, l]) => ({
+      type: "Feature",
+      geometry: { type: "MultiLineString", coordinates: [...l.ways.values()].filter((c) => c.length > 1) },
+      properties: { ref, name: `${ref}호선`, colour: l.colour },
+    }));
+  fs.writeFileSync(path.join(out, "subway_line.geojson"), JSON.stringify({ type: "FeatureCollection", features }));
+  console.log("subway_line", features.map((f) => `${f.properties.name}(${f.geometry.coordinates.length} ways)`).join(", "));
+}

@@ -6,6 +6,7 @@ import SeoulMap, { classColors, type MapPadding } from "./seoulMap";
 import {
   METRICS,
   POI_LAYERS,
+  SUBWAY_COLORS,
   formatMetric,
   getDistrictDetail,
   getDistricts,
@@ -168,6 +169,21 @@ export default function DistrictExplorer() {
               {l.text}
             </div>
           ))}
+          {visiblePois.includes("subway") && (
+            <>
+              <strong className="d-block small mt-3 mb-2">지하철 노선</strong>
+              <div className={styles.lineLegend}>
+                {Object.entries(SUBWAY_COLORS).map(([ref, color]) => (
+                  <span key={ref} className={styles.lineBadge} style={{ background: color }} title={`${ref}호선`}>
+                    {ref}
+                  </span>
+                ))}
+              </div>
+              <div className="d-flex align-items-center gap-2 small mt-2 text-secondary">
+                <span className={styles.transferIcon} /> 환승역
+              </div>
+            </>
+          )}
         </div>
       </div>
 
@@ -225,7 +241,15 @@ export default function DistrictExplorer() {
                     {poiLoading.includes(p.key) ? (
                       <span className="spinner-border" style={{ width: 10, height: 10, borderWidth: 2 }} />
                     ) : (
-                      <span className={styles.dot} style={{ background: p.color }} />
+                      <span
+                        className={styles.dot}
+                        style={{
+                          background:
+                            p.key === "subway"
+                              ? "conic-gradient(#004A85 0 25%, #00A23F 0 50%, #ED6C00 0 75%, #009BCE 0)"
+                              : p.color,
+                        }}
+                      />
                     )}
                     {p.label}
                   </button>
@@ -291,8 +315,13 @@ export default function DistrictExplorer() {
                     </p>
                     <div className="d-flex flex-wrap gap-1 mb-3">
                       {shownDetail.subwayStations.map((s) => (
-                        <span key={s} className={styles.station}>
-                          {s}
+                        <span key={s.name} className={styles.station}>
+                          {s.lines.map((l) => (
+                            <span key={l} className={styles.lineBadge} style={{ background: SUBWAY_COLORS[l] }}>
+                              {l}
+                            </span>
+                          ))}
+                          {s.name}
                         </span>
                       ))}
                     </div>

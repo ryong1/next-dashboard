@@ -7,6 +7,8 @@ import {
   POI_LAYERS,
   formatMetric,
   getPois,
+  getSubwayLines,
+  getSubwayStations,
   type DistrictCollection,
   type DistrictFeature,
   type Metric,
@@ -72,6 +74,12 @@ function labelExpression(metric: Metric): ExpressionSpecification {
 }
 
 const poiLayerId = (c: PoiCategory) => `poi-${c}`;
+
+// 지하철은 여러 레이어(선 테두리, 노선, 역, 역 이름)로 그린다
+const SUBWAY_LAYERS = ["subway-line-casing", "subway-line", "subway-station", "subway-label"];
+const layersOf = (c: PoiCategory) => (c === "subway" ? SUBWAY_LAYERS : [poiLayerId(c)]);
+// 마우스를 올렸을 때 정보를 보여줄 레이어
+const HOVER_LAYERS = ["subway-station", "subway-line", ...POI_LAYERS.filter((p) => p.key !== "subway").map((p) => poiLayerId(p.key))];
 const POI_LABEL = Object.fromEntries(POI_LAYERS.map((p) => [p.key, p.label]));
 
 type Props = {
@@ -205,7 +213,7 @@ export default function SeoulMap({
       map.on("mousemove", (e) => {
         if (!map || !map.getLayer("district-fill")) return;
         const layers = [
-          ...POI_LAYERS.map((p) => poiLayerId(p.key)).filter((id) => map!.getLayer(id)),
+          ...HOVER_LAYERS.filter((id) => map!.getLayer(id)),
           "district-fill",
         ];
         const hits = map.queryRenderedFeatures(e.point, { layers });
@@ -239,6 +247,15 @@ export default function SeoulMap({
           const m = metricRef.current;
           title.textContent = String(top.properties.name);
           sub.textContent = `${m.label} ${formatMetric(m, Number(top.properties[m.key]))}`;
+        } else if (top.layer.id === "subway-station") {
+          title.textContent = `${top.properties.name}역`;
+          // geojson 배열 속성은 문자열로 넘어오므로 다시 파싱
+          const raw = top.properties.lines;
+          const lines: string[] = Array.isArray(raw) ? raw : JSON.parse(String(raw ?? "[]"));
+          sub.textContent = lines.length ? `${lines.join("·")}호선` : "지하철역";
+        } else if (top.layer.id === "subway-line") {
+          title.textContent = String(top.properties.name);
+          sub.textContent = "지하철 노선";
         } else {
           title.textContent = top.properties.name ? String(top.properties.name) : "(이름 없음)";
           sub.textContent = POI_LABEL[String(top.properties.category)] ?? "";
@@ -288,78 +305,130 @@ export default function SeoulMap({
 
     for (const { key, color } of POI_LAYERS) {
       const visible = visiblePois.includes(key);
-      const id = poiLayerId(key);
+      const ids = layersOf(key);
 
-      if (map.getLayer(id)) {
-        for (const layer of [id, `${id}-label`]) {
-          if (map.getLayer(layer)) map.setLayoutProperty(layer, "visibility", visible ? "visible" : "none");
-        }
+      if (map.getLayer(ids[0])) {
+        for (const id of ids) map.setLayoutProperty(id, "visibility", visible ? "visible" : "none");
         continue;
       }
       if (!visible || poiRequested.current.has(key)) continue;
 
       poiRequested.current.add(key);
       onPoiLoadingRef.current?.(key, true);
-      getPois(key)
-        .then((geo) => {
-          if (mapRef.current !== map) return; // 그 사이 지도가 다시 만들어짐
-          map.addSource(id, { type: "geojson", data: geo });
-          if (key === "park") {
-            map.addLayer(
-              {
-                id,
-                type: "fill",
-                source: id,
-                paint: { "fill-color": color, "fill-opacity": 0.5, "fill-outline-color": "#1f7a35" },
-              },
-              "district-line",
-            );
-          } else {
-            map.addLayer(
-              {
-                id,
-                type: "circle",
-                source: id,
-                paint: {
-                  "circle-color": color,
-                  "circle-radius": [
-                    "interpolate", ["linear"], ["zoom"],
-                    10, key === "subway" ? 3.5 : 2.5,
-                    14, key === "subway" ? 7 : 6,
-                  ],
-                  "circle-stroke-color": "#ffffff",
-                  "circle-stroke-width": 1,
-                },
-              },
-              "district-label",
-            );
-          }
-          // 지하철역은 확대하면 역 이름도 표시 (겹치는 이름은 자동으로 하나만)
-          if (key === "subway") {
-            map.addLayer({
-              id: `${id}-label`,
-              type: "symbol",
-              source: id,
-              minzoom: 12,
-              layout: {
-                "text-field": ["get", "name"],
-                "text-font": ["Noto Sans Regular"],
-                "text-size": ["interpolate", ["linear"], ["zoom"], 12, 10.5, 15, 13],
-                "text-offset": [0, 0.9],
-                "text-anchor": "top",
-                "text-padding": 4,
-              },
-              paint: {
-                "text-color": "#a3420b",
-                "text-halo-color": "rgba(255,255,255,0.95)",
-                "text-halo-width": 1.5,
-              },
-            });
-          }
-          setLoadedPois((prev) => [...prev, key]);
-        })
+      const load = key === "subway" ? addSubwayLayers(map) : addPoiLayer(map, key, color);
+      load
+        .then((added) => added && setLoadedPois((prev) => [...prev, key]))
         .catch(() => poiRequested.current.delete(key))
         .finally(() => onPoiLoadingRef.current?.(key, false));
+    }
+
+    function addPoiLayer(map: MlMap, key: PoiCategory, color: string) {
+      return getPois(key).then((geo) => {
+        if (mapRef.current !== map) return false; // 그 사이 지도가 다시 만들어짐
+        const id = poiLayerId(key);
+        map.addSource(id, { type: "geojson", data: geo });
+        if (key === "park") {
+          map.addLayer(
+            {
+              id,
+              type: "fill",
+              source: id,
+              paint: { "fill-color": color, "fill-opacity": 0.5, "fill-outline-color": "#1f7a35" },
+            },
+            "district-line",
+          );
+        } else {
+          map.addLayer(
+            {
+              id,
+              type: "circle",
+              source: id,
+              paint: {
+                "circle-color": color,
+                "circle-radius": ["interpolate", ["linear"], ["zoom"], 10, 2.5, 14, 6],
+                "circle-stroke-color": "#ffffff",
+                "circle-stroke-width": 1,
+              },
+            },
+            "district-label",
+          );
+        }
+        return true;
+      });
+    }
+
+    // 노선도 스타일: 호선 색 선 + 흰 원 역 (환승역은 크고 진한 테두리)
+    function addSubwayLayers(map: MlMap) {
+      return Promise.all([getSubwayLines(), getSubwayStations()]).then(([lines, stations]) => {
+        if (mapRef.current !== map) return false;
+        map.addSource("subway-lines", { type: "geojson", data: lines });
+        map.addSource("subway-stations", { type: "geojson", data: stations });
+
+        const lineWidth: ExpressionSpecification = ["interpolate", ["linear"], ["zoom"], 10, 2, 13, 3.5, 16, 6];
+        map.addLayer(
+          {
+            id: "subway-line-casing",
+            type: "line",
+            source: "subway-lines",
+            layout: { "line-join": "round", "line-cap": "round" },
+            paint: {
+              "line-color": "#ffffff",
+              "line-width": ["interpolate", ["linear"], ["zoom"], 10, 3.5, 13, 5.5, 16, 9],
+              "line-opacity": 0.9,
+            },
+          },
+          "district-label",
+        );
+        map.addLayer(
+          {
+            id: "subway-line",
+            type: "line",
+            source: "subway-lines",
+            layout: { "line-join": "round", "line-cap": "round" },
+            paint: { "line-color": ["get", "colour"], "line-width": lineWidth },
+          },
+          "district-label",
+        );
+
+        const transfer: ExpressionSpecification = ["boolean", ["get", "transfer"], false];
+        map.addLayer({
+          id: "subway-station",
+          type: "circle",
+          source: "subway-stations",
+          minzoom: 11,
+          paint: {
+            "circle-color": "#ffffff",
+            "circle-radius": [
+              "interpolate", ["linear"], ["zoom"],
+              11, ["case", transfer, 3.5, 2.5],
+              15, ["case", transfer, 7.5, 5],
+            ],
+            "circle-stroke-color": ["case", transfer, "#1f2a44", ["get", "colour"]],
+            "circle-stroke-width": ["interpolate", ["linear"], ["zoom"], 11, 1.5, 15, 2.5],
+          },
+        });
+        map.addLayer({
+          id: "subway-label",
+          type: "symbol",
+          source: "subway-stations",
+          minzoom: 12.5,
+          layout: {
+            "text-field": ["get", "name"],
+            "text-font": ["Noto Sans Regular"],
+            "text-size": ["interpolate", ["linear"], ["zoom"], 12.5, 10.5, 16, 13],
+            "text-offset": [0, 0.8],
+            "text-anchor": "top",
+            "text-padding": 3,
+            "symbol-sort-key": ["case", transfer, 0, 1], // 겹치면 환승역 이름을 우선
+          },
+          paint: {
+            "text-color": "#1f2a44",
+            "text-halo-color": "rgba(255,255,255,0.95)",
+            "text-halo-width": 1.5,
+          },
+        });
+        return true;
+      });
     }
   }, [visiblePois, ready, loadedPois]);
 

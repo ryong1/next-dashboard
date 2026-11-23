@@ -46,3 +46,32 @@ FROM district d
 WITH NO DATA;
 
 CREATE UNIQUE INDEX IF NOT EXISTS district_stats_code_idx ON district_stats (code);
+
+-- 지하철 노선 (1~9호선, 서울 주변으로 잘라서 저장)
+CREATE TABLE IF NOT EXISTS subway_line (
+    ref    VARCHAR(4) PRIMARY KEY,
+    name   VARCHAR(20) NOT NULL,
+    colour VARCHAR(9) NOT NULL,
+    geom   geometry(MultiLineString, 4326) NOT NULL
+);
+
+CREATE INDEX IF NOT EXISTS subway_line_geom_idx ON subway_line USING GIST (geom);
+
+-- 지하철역: 노선별로 따로 찍힌 역 점을 이름으로 묶어 대표점 하나로 만들고,
+-- 각 역 점에서 150m 안을 지나는 노선을 그 역의 호선으로 본다.
+-- (120m면 잠실 8호선이 빠지고, 180m부터는 광화문-1호선처럼 안 서는 노선이 잡혀서 150m로 정함)
+CREATE MATERIALIZED VIEW IF NOT EXISTS subway_station AS
+SELECT s.name,
+       ST_Centroid(ST_Collect(s.geom)) AS geom,
+       coalesce((SELECT array_agg(DISTINCT l.ref ORDER BY l.ref)
+                   FROM poi p
+                   JOIN subway_line l
+                     ON l.geom && ST_Expand(p.geom, 0.002)  -- 공간 인덱스로 후보를 먼저 거름
+                    AND ST_DWithin(l.geom::geography, p.geom::geography, 150)
+                  WHERE p.category = 'subway' AND p.name = s.name), '{}') AS lines
+FROM poi s
+WHERE s.category = 'subway' AND s.name IS NOT NULL
+GROUP BY s.name
+WITH NO DATA;
+
+CREATE UNIQUE INDEX IF NOT EXISTS subway_station_name_idx ON subway_station (name);

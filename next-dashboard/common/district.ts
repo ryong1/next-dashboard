@@ -32,13 +32,15 @@ export type DistrictCollection = {
 
 export type DistrictRef = { code: string; name: string };
 
+export type SubwayStation = { name: string; lines: string[] };
+
 export type DistrictDetail = DistrictRef & {
   nameEng: string;
   areaKm2: number;
   perimeterKm: number;
   center: [number, number];
   stats: DistrictStats;
-  subwayStations: string[];
+  subwayStations: SubwayStation[];
   neighbors: DistrictRef[];
 };
 
@@ -68,6 +70,21 @@ export const getDistrictDetail = (code: string) =>
   apiGet<DistrictDetail>(`/api/districts/${code}`);
 export const getPois = (category: PoiCategory) =>
   apiGet<PoiCollection>(`/api/pois?category=${category}`);
+export const getSubwayLines = () => apiGet<GeoJSON.FeatureCollection>("/api/subway/lines");
+export const getSubwayStations = () => apiGet<GeoJSON.FeatureCollection>("/api/subway/stations");
+
+// 호선 색 (OSM colour 태그 값과 같게 맞춤). 상세 패널, 범례에서 사용
+export const SUBWAY_COLORS: Record<string, string> = {
+  "1": "#004A85",
+  "2": "#00A23F",
+  "3": "#ED6C00",
+  "4": "#009BCE",
+  "5": "#794698",
+  "6": "#7C4932",
+  "7": "#6E7E31",
+  "8": "#D11D70",
+  "9": "#A49D87",
+};
 
 // ---------- 지도 색칠 기준(지표) ----------
 
@@ -116,7 +133,7 @@ export function quantileBreaks(values: number[], decimals: number): number[] {
 // ---------- 시설 레이어 ----------
 
 export const POI_LAYERS: { key: PoiCategory; label: string; color: string }[] = [
-  { key: "subway", label: "지하철역", color: "#e8590c" },
+  { key: "subway", label: "지하철", color: "#00A23F" },
   { key: "school", label: "학교", color: "#6f42c1" },
   { key: "hospital", label: "병원", color: "#d63939" },
   { key: "park", label: "공원", color: "#2f9e44" },

@@ -47,6 +47,18 @@ public class GisDataLoader implements ApplicationRunner {
             ON CONFLICT (category, osm_id) DO NOTHING
             """;
 
+    // 1호선처럼 서울 밖으로 길게 이어지는 노선은 서울 경계 사각형(+약 2km)으로 자른다
+    private static final String INSERT_SUBWAY_LINES = """
+            WITH box AS (SELECT ST_Expand(ST_Envelope(ST_Collect(geom)), 0.02) AS g FROM district)
+            INSERT INTO subway_line (ref, name, colour, geom)
+            SELECT f -> 'properties' ->> 'ref',
+                   f -> 'properties' ->> 'name',
+                   f -> 'properties' ->> 'colour',
+                   ST_Multi(ST_CollectionExtract(ST_Intersection(
+                       ST_LineMerge(ST_SetSRID(ST_GeomFromGeoJSON(f ->> 'geometry'), 4326)), box.g), 2))
+            FROM jsonb_array_elements(CAST(? AS jsonb) -> 'features') AS f, box
+            """;
+
     private final JdbcTemplate jdbc;
     private final ResourceLoader resources;
 
@@ -73,12 +85,23 @@ public class GisDataLoader implements ApplicationRunner {
             changed = true;
         }
 
+        if (count("SELECT count(*) FROM subway_line") == 0) {
+            int n = jdbc.update(INSERT_SUBWAY_LINES, read("classpath:data/osm/subway_line.geojson"));
+            log.info("지하철 노선 {}개 적재", n);
+            changed = true;
+        }
+
+        refreshIfNeeded("district_stats", changed);
+        refreshIfNeeded("subway_station", changed);
+    }
+
+    private void refreshIfNeeded(String view, boolean changed) {
         Boolean populated = jdbc.queryForObject(
-                "SELECT ispopulated FROM pg_matviews WHERE matviewname = 'district_stats'", Boolean.class);
+                "SELECT ispopulated FROM pg_matviews WHERE matviewname = ?", Boolean.class, view);
         if (changed || !Boolean.TRUE.equals(populated)) {
             long start = System.currentTimeMillis();
-            jdbc.execute("REFRESH MATERIALIZED VIEW district_stats");
-            log.info("구별 시설 집계(district_stats) 갱신: {}ms", System.currentTimeMillis() - start);
+            jdbc.execute("REFRESH MATERIALIZED VIEW " + view);
+            log.info("{} 갱신: {}ms", view, System.currentTimeMillis() - start);
         }
     }
 

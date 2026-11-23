@@ -92,15 +92,19 @@ public class DistrictRepository {
         return rows.stream().findFirst();
     }
 
-    /** 구 안의 지하철역 이름 (노선별 중복 제거) */
-    private List<String> findSubwayStations(String code) {
-        return jdbc.queryForList("""
-                SELECT DISTINCT p.name
-                FROM poi p
-                JOIN district d ON ST_Contains(d.geom, p.geom)
-                WHERE d.code = ? AND p.category = 'subway' AND p.name IS NOT NULL
-                ORDER BY p.name
-                """, String.class, code);
+    /** 구 안의 지하철역과 지나는 호선 */
+    private List<SubwayStation> findSubwayStations(String code) {
+        return jdbc.query("""
+                SELECT st.name, st.lines
+                FROM subway_station st
+                JOIN district d ON ST_Contains(d.geom, st.geom)
+                WHERE d.code = ?
+                ORDER BY st.name
+                """,
+                (rs, i) -> new SubwayStation(
+                        rs.getString("name"),
+                        List.of((String[]) rs.getArray("lines").getArray())),
+                code);
     }
 
     /** 경계가 맞닿은 구 (단순화된 경계라 오차를 감안해 100m 이내면 이웃으로 본다). */

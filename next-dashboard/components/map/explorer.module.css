@@ -229,11 +229,21 @@ button.tile:hover {
 }
 
 .station {
-  padding: 2px 8px;
-  border-radius: 6px;
-  background: #fff1e6;
-  color: #b4470b;
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  padding: 3px 9px 3px 4px;
+  border: 1px solid #e6eaf2;
+  border-radius: 999px;
+  background: #ffffff;
+  color: #1f2a44;
   font-size: 12px;
+}
+
+.station .lineBadge {
+  width: 16px;
+  height: 16px;
+  font-size: 9.5px;
 }
 
 .rankList {
@@ -360,4 +370,33 @@ button.tile:hover {
   .mapArea :global(.maplibregl-ctrl-bottom-right) {
     right: 372px;
   }
+}
+
+/* ---- 지하철 ---- */
+.lineBadge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  color: #ffffff;
+  font-size: 10.5px;
+  font-weight: 700;
+  line-height: 1;
+}
+
+.lineLegend {
+  display: grid;
+  grid-template-columns: repeat(5, 18px);
+  gap: 5px;
+}
+
+.transferIcon {
+  display: inline-block;
+  width: 12px;
+  height: 12px;
+  border: 2.5px solid #1f2a44;
+  border-radius: 50%;
+  background: #ffffff;
 }
