@@ -1,0 +1,88 @@
+.mapWrap {
+  position: relative;
+  height: clamp(420px, 68vh, 720px);
+  background: #eef1f7;
+}
+
+.legend {
+  position: absolute;
+  left: 16px;
+  bottom: 16px;
+  z-index: 2;
+  padding: 12px 14px;
+  border-radius: 12px;
+  background: rgb(255 255 255 / 92%);
+  box-shadow: 0 4px 16px rgb(31 42 68 / 12%);
+  pointer-events: none;
+}
+
+.swatch {
+  display: inline-block;
+  width: 14px;
+  height: 14px;
+  border-radius: 4px;
+}
+
+.chip {
+  background: #edf1ff;
+  color: #3b55b0;
+  border: 0;
+}
+
+.chip:hover {
+  background: #dce4ff;
+  color: #2b4396;
+}
+
+.rankList {
+  max-height: 360px;
+  overflow-y: auto;
+  margin-right: -8px;
+  padding-right: 8px;
+}
+
+.rankItem {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  padding: 8px 10px;
+  border: 0;
+  border-radius: 10px;
+  background: transparent;
+  color: inherit;
+  transition: background-color 0.15s;
+}
+
+.rankItem:hover {
+  background: #f3f5fb;
+}
+
+.rankActive,
+.rankActive:hover {
+  background: #edf1ff;
+}
+
+.rankNo {
+  width: 22px;
+  flex-shrink: 0;
+  color: #98a2b3;
+  font-size: 12px;
+  font-weight: 600;
+  text-align: center;
+}
+
+.rankTrack {
+  display: block;
+  height: 6px;
+  border-radius: 3px;
+  background: #eef1f7;
+  overflow: hidden;
+}
+
+.rankBar {
+  display: block;
+  height: 100%;
+  border-radius: 3px;
+  background: linear-gradient(90deg, #8c9ee9, #5874ce);
+}

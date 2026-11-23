@@ -6,6 +6,7 @@ import styles from "../app/page.module.css";
 
 const menuItems = [
   { icon: "▦", label: "대시보드", href: "/" },
+  { icon: "◎", label: "지도 분석", href: "/map" },
   { icon: "▤", label: "프로젝트", href: "/projects" },
   { icon: "♙", label: "사용자 관리", href: "/users" },
   { icon: "▧", label: "통계 분석", href: "/statistics" },
