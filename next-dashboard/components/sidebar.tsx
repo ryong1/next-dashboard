@@ -2,6 +2,7 @@
 import Link from "next/link";
 import styles from "../app/page.module.css";
 import SidebarNav from "./sidebarNav";
+import ServerStatus from "./serverStatus";
 
 export default function Sidebar() {
   return (
@@ -18,16 +19,21 @@ export default function Sidebar() {
 
       <SidebarNav />
 
-      <div className="d-none d-lg-flex align-items-center gap-3 mt-auto pt-5">
-        <div
-          className={`rounded-circle d-flex align-items-center justify-content-center fw-bold ${styles.avatar}`}
-        >
-          GY
-        </div>
+      {/* 아래쪽: 서버 상태(모바일에서는 가로 막대 오른쪽 끝) + 프로필 */}
+      <div className="ms-auto ms-lg-0 mt-lg-auto pt-lg-5 flex-shrink-0">
+        <ServerStatus />
 
-        <div>
-          <strong className="d-block">관리자</strong>
-          <small className="text-secondary">연습용 계정</small>
+        <div className="d-none d-lg-flex align-items-center gap-3 mt-3">
+          <div
+            className={`rounded-circle d-flex align-items-center justify-content-center fw-bold ${styles.avatar}`}
+          >
+            GY
+          </div>
+
+          <div>
+            <strong className="d-block">관리자</strong>
+            <small className="text-secondary">연습용 계정</small>
+          </div>
         </div>
       </div>
     </aside>

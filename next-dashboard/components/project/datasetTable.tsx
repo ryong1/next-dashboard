@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import ServerErrorNotice from "../serverErrorNotice";
 import { getDistrictSummary, getSubwayLines, getSubwayStations, type DistrictSummary } from "../../common/district";
 
 type Counts = {
@@ -13,7 +14,8 @@ type Counts = {
 // 백엔드(gis-api)에 실제로 들어 있는 데이터 개수를 그대로 보여준다
 export default function DatasetTable() {
   const [counts, setCounts] = useState<Counts | null>(null);
-  const [error, setError] = useState(false);
+  const [error, setError] = useState<unknown>(null);
+  const [reloadKey, setReloadKey] = useState(0);
 
   useEffect(() => {
     Promise.all([getDistrictSummary(), getSubwayLines(), getSubwayStations()])
@@ -25,14 +27,19 @@ export default function DatasetTable() {
           transfers: stations.features.filter((f) => f.properties?.transfer).length,
         }),
       )
-      .catch(() => setError(true));
-  }, []);
+      .catch((e) => setError(e));
+  }, [reloadKey]);
 
   if (error) {
     return (
-      <p className="small text-secondary mb-0">
-        백엔드(gis-api)에 연결할 수 없어 데이터 개수를 불러오지 못했어요.
-      </p>
+      <ServerErrorNotice
+        error={error}
+        what="데이터셋 정보"
+        onRetry={() => {
+          setError(null);
+          setReloadKey((k) => k + 1);
+        }}
+      />
     );
   }
 

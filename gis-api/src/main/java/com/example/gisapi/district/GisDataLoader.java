@@ -91,6 +91,17 @@ public class GisDataLoader implements ApplicationRunner {
             changed = true;
         }
 
+        if (count("SELECT count(*) FROM subway_line_stop") == 0) {
+            int n = jdbc.update("""
+                    INSERT INTO subway_line_stop (ref, name)
+                    SELECT s ->> 'ref', s ->> 'name'
+                    FROM jsonb_array_elements(CAST(? AS jsonb)) AS s
+                    ON CONFLICT DO NOTHING
+                    """, read("classpath:data/osm/subway_stop.json"));
+            log.info("지하철 정차역 목록 {}건 적재", n);
+            changed = true;
+        }
+
         refreshIfNeeded("district_stats", changed);
         refreshIfNeeded("subway_station", changed);
     }

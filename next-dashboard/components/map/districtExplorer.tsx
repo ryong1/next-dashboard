@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useState, useSyncExternalStore } from "react";
 import styles from "./explorer.module.css";
+import ServerErrorNotice from "../serverErrorNotice";
 import SeoulMap, { classColors, type MapPadding } from "./seoulMap";
 import {
   METRICS,
@@ -41,7 +42,8 @@ const MOBILE_PADDING: MapPadding = { top: 16, right: 16, bottom: 16, left: 16 };
 export default function DistrictExplorer() {
   const [data, setData] = useState<DistrictCollection | null>(null);
   const [summary, setSummary] = useState<DistrictSummary | null>(null);
-  const [error, setError] = useState<string | null>(null);
+  const [error, setError] = useState<unknown>(null);
+  const [reloadKey, setReloadKey] = useState(0);
   const [selectedCode, setSelectedCode] = useState<string | null>(null);
   const [detail, setDetail] = useState<DistrictDetail | null>(null);
   const [metricKey, setMetricKey] = useState<MetricKey>("areaKm2");
@@ -55,15 +57,15 @@ export default function DistrictExplorer() {
         setData(geo);
         setSummary(sum);
       })
-      .catch((e: Error) => setError(e.message));
-  }, []);
+      .catch((e) => setError(e));
+  }, [reloadKey]);
 
   useEffect(() => {
     if (!selectedCode) return;
     let ignore = false;
     getDistrictDetail(selectedCode)
       .then((d) => !ignore && setDetail(d))
-      .catch((e: Error) => !ignore && setError(e.message));
+      .catch((e) => !ignore && setError(e));
     return () => {
       ignore = true;
     };
@@ -102,12 +104,14 @@ export default function DistrictExplorer() {
   if (error) {
     return (
       <div className="p-4">
-        <div className="alert alert-warning rounded-4 border-0 shadow-sm">
-          <strong className="d-block mb-1">지도 데이터를 불러오지 못했어요</strong>
-          <span className="small">
-            백엔드(gis-api, http://localhost:8080)가 실행 중인지 확인해 주세요. ({error})
-          </span>
-        </div>
+        <ServerErrorNotice
+          error={error}
+          what="지도 데이터"
+          onRetry={() => {
+            setError(null);
+            setReloadKey((k) => k + 1);
+          }}
+        />
       </div>
     );
   }

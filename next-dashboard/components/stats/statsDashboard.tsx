@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import styles from "./stats.module.css";
+import ServerErrorNotice from "../serverErrorNotice";
 import {
   SUBWAY_COLORS,
   getDistricts,
@@ -39,7 +40,8 @@ const fmt = (v: number, d: number) => v.toLocaleString(undefined, { minimumFract
 export default function StatsDashboard() {
   const [rows, setRows] = useState<Row[] | null>(null);
   const [stations, setStations] = useState<Station[]>([]);
-  const [error, setError] = useState<string | null>(null);
+  const [error, setError] = useState<unknown>(null);
+  const [reloadKey, setReloadKey] = useState(0);
   const [metricKey, setMetricKey] = useState<DensityKey>("subwayDensity");
   const [hover, setHover] = useState<string | null>(null);
 
@@ -56,8 +58,8 @@ export default function StatsDashboard() {
         );
         setStations(st.features.map((f) => f.properties as Station));
       })
-      .catch((e: Error) => setError(e.message));
-  }, []);
+      .catch((e) => setError(e));
+  }, [reloadKey]);
 
   const metric = DENSITY.find((m) => m.key === metricKey)!;
 
@@ -97,10 +99,14 @@ export default function StatsDashboard() {
 
   if (error) {
     return (
-      <div className="alert alert-warning rounded-4 border-0 shadow-sm">
-        <strong className="d-block mb-1">통계 데이터를 불러오지 못했어요</strong>
-        <span className="small">백엔드(gis-api, http://localhost:8080)가 실행 중인지 확인해 주세요. ({error})</span>
-      </div>
+      <ServerErrorNotice
+        error={error}
+        what="통계 데이터"
+        onRetry={() => {
+          setError(null);
+          setReloadKey((k) => k + 1);
+        }}
+      />
     );
   }
 

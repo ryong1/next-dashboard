@@ -55,3 +55,25 @@ if (fs.existsSync(lineFile)) {
   fs.writeFileSync(path.join(out, "subway_line.geojson"), JSON.stringify({ type: "FeatureCollection", features }));
   console.log("subway_line", features.map((f) => `${f.properties.name}(${f.geometry.coordinates.length} ways)`).join(", "));
 }
+
+// ---- 지하철 정차역 목록 (노선 관계의 stop 멤버) → [{ ref, name }] ----
+// 역 이름은 괄호/끝의 "역"을 떼어 정규화 (DB의 subway_station 뷰도 같은 규칙으로 맞춘다)
+const stopFile = path.join(raw, "subway_stop.json");
+if (fs.existsSync(stopFile)) {
+  const els = JSON.parse(fs.readFileSync(stopFile, "utf8")).elements;
+  const nodes = new Map(els.filter((e) => e.type === "node").map((n) => [n.id, n]));
+  const norm = (s) => s.replace(/\s*\(.*?\)\s*/g, "").replace(/역$/, "").trim();
+  const pairs = new Map();
+  for (const r of els.filter((e) => e.type === "relation")) {
+    const ref = r.tags?.ref;
+    if (!/^[1-9]$/.test(ref ?? "")) continue;
+    for (const m of r.members) {
+      if (m.type !== "node" || !/^stop/.test(m.role)) continue;
+      const name = nameOf(nodes.get(m.ref)?.tags);
+      if (name) pairs.set(`${ref}|${norm(name)}`, { ref, name: norm(name) });
+    }
+  }
+  const stops = [...pairs.values()].sort((a, b) => a.ref.localeCompare(b.ref) || a.name.localeCompare(b.name));
+  fs.writeFileSync(path.join(out, "subway_stop.json"), JSON.stringify(stops));
+  console.log("subway_stop", stops.length, "pairs");
+}

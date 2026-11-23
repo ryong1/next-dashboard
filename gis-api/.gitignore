@@ -38,3 +38,6 @@ out/
 
 ### 로컬 비밀 설정 ###
 local.properties
+
+### 로그 ###
+logs/

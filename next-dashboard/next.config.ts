@@ -4,10 +4,7 @@ import type { NextConfig } from "next";
 const GIS_API_URL = process.env.GIS_API_URL ?? "http://localhost:8080";
 
 const nextConfig: NextConfig = {
-  /* config options here */
-  experimental: {
-    agentFeedback: true,
-  },
+  // experimental.agentFeedback는 끔: 켜 두면 next dev가 AGENTS.md에 피드백 안내를 계속 다시 써 넣는다
   cacheComponents: true,
   partialPrefetching: true,
   // 지도가 메인(/)으로 옮겨져서 예전 주소는 메인으로 보낸다

@@ -16,4 +16,5 @@ q school   'nwr["amenity"="school"](area.s);out center tags;'
 q hospital 'nwr["amenity"="hospital"](area.s);out center tags;'
 q park     '(way["leisure"="park"](area.s);relation["leisure"="park"](area.s););out geom;'
 q subway_line 'relation["route"="subway"](area.s);out geom;'
+q subway_stop 'relation["route"="subway"](area.s)->.r;(.r;node(r.r:"stop");node(r.r:"stop_entry_only");node(r.r:"stop_exit_only"););out body;'
 node convert.js "$RAW" "$OUT"
