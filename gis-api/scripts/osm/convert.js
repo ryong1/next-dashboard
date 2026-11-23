@@ -92,7 +92,9 @@ for (const r of lineRels) {
 // ---------- 평행 선로 제거 (노선을 한 줄로) ----------
 // 상하행·급행 선로가 나란히 있으면 여러 줄로 겹쳐 보인다. 긴 계통부터 선로를 그리면서,
 // 이미 그린 선에서 PARALLEL_M 안쪽으로 나란히 달리는 구간(샘플 점의 80% 이상)은 건너뛴다.
-const PARALLEL_M = 30;
+// 30m로는 한강철교(용산-노량진)처럼 다리·복복선이 30~100m 떨어진 곳이 두 줄로 남아서 100m로 정함.
+// 100m 넘게 떨어진 선은 건드리지 않으므로 실제로 갈라지는 지선은 유지된다. (환경 변수로 바꿔 비교 가능)
+const PARALLEL_M = Number(process.env.PARALLEL_M ?? 100);
 const toXY = ([lon, lat]) => [lon * 111320 * Math.cos((37.55 * Math.PI) / 180), lat * 110540];
 function segDist([px, py], [ax, ay], [bx, by]) {
   const dx = bx - ax, dy = by - ay, len2 = dx * dx + dy * dy;
