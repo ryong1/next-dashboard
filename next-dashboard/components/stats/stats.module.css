@@ -145,26 +145,21 @@
   border-radius: 3px;
 }
 
-/* ---- 호선 ---- */
+/* ---- 노선 ---- */
 .lineChart {
-  --label-w: 84px;
+  --label-w: 112px;
   --value-w: 40px;
   display: flex;
   flex-direction: column;
   gap: 4px;
 }
 
-.lineBadge {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 18px;
-  height: 18px;
+.lineDot {
+  display: inline-block;
+  flex-shrink: 0;
+  width: 10px;
+  height: 10px;
   border-radius: 50%;
-  color: #ffffff;
-  font-size: 10.5px;
-  font-weight: 700;
-  line-height: 1;
 }
 
 .station {
@@ -177,12 +172,6 @@
   background: #ffffff;
   color: #1f2a44;
   font-size: 12px;
-}
-
-.station .lineBadge {
-  width: 16px;
-  height: 16px;
-  font-size: 9.5px;
 }
 
 /* ---- 표 ---- */

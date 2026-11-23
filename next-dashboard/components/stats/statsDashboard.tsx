@@ -3,8 +3,10 @@
 import { useEffect, useMemo, useState } from "react";
 import styles from "./stats.module.css";
 import ServerErrorNotice from "../serverErrorNotice";
+import LineBadge from "../lineBadge";
 import {
-  SUBWAY_COLORS,
+  SUBWAY_LINES,
+  lineOf,
   getDistricts,
   getSubwayStations,
   type DistrictProperties,
@@ -240,16 +242,14 @@ export default function StatsDashboard() {
           {/* 호선별 역 수 */}
           <article className="card border-0 shadow-sm rounded-4">
             <div className="card-body p-4">
-              <h2 className="h5 fw-bold mb-1">호선별 서울 시내 역 수</h2>
-              <p className="small text-secondary mb-3">환승역은 지나는 호선마다 한 번씩 셌어요.</p>
+              <h2 className="h5 fw-bold mb-1">노선별 서울 시내 역 수</h2>
+              <p className="small text-secondary mb-3">환승역은 지나는 노선마다 한 번씩 셌어요.</p>
               <div className={styles.lineChart}>
                 {perLine.map(({ line, count }) => (
-                  <div key={line} className={styles.lineRow} title={`${line}호선 ${count}개 역`}>
+                  <div key={line} className={styles.lineRow} title={`${lineOf(line).name} ${count}개 역`}>
                     <span className={styles.lineLabel}>
-                      <span className={styles.lineBadge} style={{ background: SUBWAY_COLORS[line] }}>
-                        {line}
-                      </span>
-                      {line}호선
+                      <span className={styles.lineDot} style={{ background: lineOf(line).color }} />
+                      {lineOf(line).name}
                     </span>
                     <span className={styles.barTrack}>
                       <span className={styles.bar} style={{ width: `${(count / lineMax) * 100}%`, background: "#6680d4" }} />
@@ -265,14 +265,12 @@ export default function StatsDashboard() {
           <article className="card border-0 shadow-sm rounded-4 flex-grow-1">
             <div className="card-body p-4">
               <h2 className="h5 fw-bold mb-1">환승역 {transfers.length}곳</h2>
-              <p className="small text-secondary mb-3">지나는 호선이 많은 순서예요 (1~9호선 기준).</p>
+              <p className="small text-secondary mb-3">지나는 노선이 많은 순서예요 (수도권 전철 {SUBWAY_LINES.length}개 노선 기준).</p>
               <div className="d-flex flex-wrap gap-1">
                 {transfers.map((s) => (
                   <span key={s.name} className={styles.station}>
                     {s.lines.map((l) => (
-                      <span key={l} className={styles.lineBadge} style={{ background: SUBWAY_COLORS[l] }}>
-                        {l}
-                      </span>
+                      <LineBadge key={l} line={l} size="sm" />
                     ))}
                     {s.name}
                   </span>

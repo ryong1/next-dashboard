@@ -16,7 +16,7 @@ public class SubwayController {
         this.jdbc = jdbc;
     }
 
-    /** 1~9호선 노선 (properties: ref, name, colour) */
+    /** 전철 노선 (properties: ref, name, short, colour, sort). 순서가 앞인 노선이 위에 그려지도록 sort 역순 */
     @GetMapping(value = "/lines", produces = "application/geo+json")
     public String lines() {
         return jdbc.queryForObject("""
@@ -24,10 +24,11 @@ public class SubwayController {
                          'type', 'FeatureCollection',
                          'features', COALESCE(json_agg(json_build_object(
                              'type', 'Feature',
-                             'id', ref::int,
+                             'id', sort,
                              'geometry', ST_AsGeoJSON(ST_SimplifyPreserveTopology(geom, 0.00001), 6)::json,
-                             'properties', json_build_object('ref', ref, 'name', name, 'colour', colour)
-                         ) ORDER BY ref DESC), '[]'::json)
+                             'properties', json_build_object(
+                                 'ref', ref, 'name', name, 'short', short_name, 'colour', colour, 'sort', sort)
+                         ) ORDER BY sort DESC), '[]'::json)
                        )::text
                 FROM subway_line
                 """, String.class);

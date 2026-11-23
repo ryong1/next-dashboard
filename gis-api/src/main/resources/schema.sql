@@ -11,7 +11,7 @@ CREATE TABLE IF NOT EXISTS district (
 -- 공간 인덱스: 점 포함 검색, 이웃 검색 등을 빠르게
 CREATE INDEX IF NOT EXISTS district_geom_idx ON district USING GIST (geom);
 
--- OpenStreetMap 시설 (지하철역/학교/병원은 점, 공원은 폴리곤)
+-- OpenStreetMap 시설 (전철역/학교/병원은 점, 공원은 폴리곤)
 CREATE TABLE IF NOT EXISTS poi (
     id       BIGSERIAL PRIMARY KEY,
     osm_id   VARCHAR(40) NOT NULL,
@@ -25,11 +25,14 @@ CREATE INDEX IF NOT EXISTS poi_geom_idx ON poi USING GIST (geom);
 CREATE INDEX IF NOT EXISTS poi_category_idx ON poi (category);
 
 -- 구별 시설 집계 (공간 조인). 계산이 무거워서 미리 만들어 두고, 데이터 적재 후 REFRESH 한다.
+-- ※ 정의를 바꾸면 DROP MATERIALIZED VIEW district_stats; 후 앱을 다시 시작해야 반영된다
 CREATE MATERIALIZED VIEW IF NOT EXISTS district_stats AS
 SELECT d.code,
        ST_Area(d.geom::geography) / 1e6 AS area_km2,
-       -- 같은 역이 노선별로 따로 등록되어 있어 이름 기준으로 중복 제거
-       (SELECT count(DISTINCT coalesce(p.name, p.osm_id)) FROM poi p
+       -- 같은 역이 노선별로 따로 등록되어 있어 정규화한 이름 기준으로 중복 제거 (서울역/서울)
+       (SELECT count(DISTINCT trim(regexp_replace(regexp_replace(coalesce(p.name, p.osm_id),
+                  '\s*\(.*?\)\s*', '', 'g'), '역$', '')))
+          FROM poi p
          WHERE p.category = 'subway' AND ST_Contains(d.geom, p.geom))   AS subway_count,
        (SELECT count(*) FROM poi p
          WHERE p.category = 'school' AND ST_Contains(d.geom, p.geom))   AS school_count,
@@ -47,12 +50,15 @@ WITH NO DATA;
 
 CREATE UNIQUE INDEX IF NOT EXISTS district_stats_code_idx ON district_stats (code);
 
--- 지하철 노선 (1~9호선, 서울 주변으로 잘라서 저장)
+-- 전철 노선 (1~9호선 + 수도권 전철 노선, 서울 주변으로 잘라서 저장)
+-- ref: 1~9 또는 영문 코드(GJ=경의중앙, SB=신분당 ...), short_name: 배지에 쓰는 짧은 이름, sort: 표시 순서
 CREATE TABLE IF NOT EXISTS subway_line (
-    ref    VARCHAR(4) PRIMARY KEY,
-    name   VARCHAR(20) NOT NULL,
-    colour VARCHAR(9) NOT NULL,
-    geom   geometry(MultiLineString, 4326) NOT NULL
+    ref        VARCHAR(4) PRIMARY KEY,
+    name       VARCHAR(30) NOT NULL,
+    short_name VARCHAR(20) NOT NULL,
+    colour     VARCHAR(9) NOT NULL,
+    sort       INT NOT NULL,
+    geom       geometry(MultiLineString, 4326) NOT NULL
 );
 
 CREATE INDEX IF NOT EXISTS subway_line_geom_idx ON subway_line USING GIST (geom);
@@ -64,34 +70,45 @@ CREATE TABLE IF NOT EXISTS subway_line_stop (
     PRIMARY KEY (ref, name)
 );
 
--- 지하철역: 노선별로 따로 찍힌 역 점을 이름으로 묶어 대표점 하나로 만들고, 호선은 두 근거를 합친다.
+-- 전철역: 역 점을 정규화한 이름(괄호, 끝의 "역" 제거)으로 묶어 대표점 하나로 만들고, 호선은 두 근거를 합친다.
 --  1) 노선 관계의 정차역 목록에 이름이 있음 (예: "총신대입구(이수)"는 "총신대입구"와 "이수" 둘 다 확인)
---  2) 역 점에서 150m 안을 노선이 지나감
---     (120m면 잠실 8호선이 빠지고, 180m부터는 광화문-1호선처럼 안 서는 노선이 잡혀서 150m로 정함)
+--  2) 1~9호선만: 역 점에서 150m 안을 노선이 지나감
+--     (120m면 잠실 8호선이 빠지고, 180m부터는 광화문-1호선처럼 안 서는 노선이 잡혀서 150m로 정함.
+--      일반철도 노선은 서지 않고 지나가는 경우가 많아 정차역 목록으로만 판단)
 -- ※ 이 정의를 바꾸면 DROP MATERIALIZED VIEW subway_station; 후 앱을 다시 시작해야 반영된다
 CREATE MATERIALIZED VIEW IF NOT EXISTS subway_station AS
-WITH st AS (
-    SELECT s.name,
-           ST_Centroid(ST_Collect(s.geom)) AS geom,
-           trim(regexp_replace(regexp_replace(s.name, '\s*\(.*?\)\s*', '', 'g'), '역$', '')) AS base_name,
-           substring(s.name FROM '\((.*?)\)') AS alias_name
-    FROM poi s
-    WHERE s.category = 'subway' AND s.name IS NOT NULL
-    GROUP BY s.name
+WITH p AS (
+    SELECT name, geom,
+           trim(regexp_replace(regexp_replace(name, '\s*\(.*?\)\s*', '', 'g'), '역$', '')) AS base_name,
+           substring(name FROM '\((.*?)\)') AS alias_name
+    FROM poi
+    WHERE category = 'subway' AND name IS NOT NULL
+), st AS (
+    -- 표시 이름: 괄호 별칭이 있는 이름 우선, 없으면 가장 짧은 이름 ("서울역"/"서울" → "서울")
+    SELECT base_name,
+           (array_agg(name ORDER BY (name ~ '\(') DESC, length(name), name))[1] AS name,
+           max(alias_name) AS alias_name,
+           ST_Centroid(ST_Collect(geom)) AS geom
+    FROM p
+    GROUP BY base_name
 )
 SELECT st.name,
        st.geom,
-       coalesce((SELECT array_agg(DISTINCT x.ref ORDER BY x.ref) FROM (
-                   SELECT ls.ref FROM subway_line_stop ls
-                    WHERE ls.name IN (st.base_name, st.alias_name)
-                   UNION
-                   SELECT l.ref
-                     FROM poi p
-                     JOIN subway_line l
-                       ON l.geom && ST_Expand(p.geom, 0.002)  -- 공간 인덱스로 후보를 먼저 거름
-                      AND ST_DWithin(l.geom::geography, p.geom::geography, 150)
-                    WHERE p.category = 'subway' AND p.name = st.name
-                 ) x), '{}') AS lines
+       coalesce((SELECT array_agg(y.ref ORDER BY y.sort) FROM (
+                   SELECT DISTINCT x.ref, l2.sort FROM (
+                       SELECT ls.ref FROM subway_line_stop ls
+                        WHERE ls.name IN (st.base_name, st.alias_name)
+                       UNION
+                       SELECT l.ref
+                         FROM p p2
+                         JOIN subway_line l
+                           ON l.ref ~ '^[1-9]$'
+                          AND l.geom && ST_Expand(p2.geom, 0.002)  -- 공간 인덱스로 후보를 먼저 거름
+                          AND ST_DWithin(l.geom::geography, p2.geom::geography, 150)
+                        WHERE p2.base_name = st.base_name
+                   ) x
+                   JOIN subway_line l2 ON l2.ref = x.ref
+                 ) y), '{}') AS lines
 FROM st
 WITH NO DATA;
 

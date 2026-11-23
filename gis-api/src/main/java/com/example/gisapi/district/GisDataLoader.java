@@ -47,13 +47,15 @@ public class GisDataLoader implements ApplicationRunner {
             ON CONFLICT (category, osm_id) DO NOTHING
             """;
 
-    // 1호선처럼 서울 밖으로 길게 이어지는 노선은 서울 경계 사각형(+약 2km)으로 자른다
+    // 1호선·경춘선처럼 서울 밖으로 길게 이어지는 노선은 서울 경계 사각형(+약 2km)으로 자른다
     private static final String INSERT_SUBWAY_LINES = """
             WITH box AS (SELECT ST_Expand(ST_Envelope(ST_Collect(geom)), 0.02) AS g FROM district)
-            INSERT INTO subway_line (ref, name, colour, geom)
+            INSERT INTO subway_line (ref, name, short_name, colour, sort, geom)
             SELECT f -> 'properties' ->> 'ref',
                    f -> 'properties' ->> 'name',
+                   f -> 'properties' ->> 'short',
                    f -> 'properties' ->> 'colour',
+                   CAST(f -> 'properties' ->> 'sort' AS int),
                    ST_Multi(ST_CollectionExtract(ST_Intersection(
                        ST_LineMerge(ST_SetSRID(ST_GeomFromGeoJSON(f ->> 'geometry'), 4326)), box.g), 2))
             FROM jsonb_array_elements(CAST(? AS jsonb) -> 'features') AS f, box

@@ -32,7 +32,7 @@
 | GET | `/api/districts/{code}` | 면적, 둘레, 중심점, 시설 집계, 지하철역 목록, 이웃 구 | `ST_Perimeter`, `ST_PointOnSurface`, `ST_DWithin` |
 | GET | `/api/districts/locate?lng=&lat=` | 좌표가 속한 구 | `ST_Contains` |
 | GET | `/api/pois?category=` | 시설 위치 GeoJSON (`subway`, `school`, `hospital`, `park`) | `ST_Intersects`, `ST_SimplifyPreserveTopology` |
-| GET | `/api/subway/lines` | 1~9호선 노선 (호선 색 포함, 서울 주변으로 자름) | `ST_LineMerge`, `ST_Intersection` |
+| GET | `/api/subway/lines` | 수도권 전철 19개 노선 (1~9호선, 경의중앙, 공항, 신분당, 수인분당, 경춘, 서해, GTX-A, 우이신설, 신림, 김포골드) | `ST_LineMerge`, `ST_Intersection` |
 | GET | `/api/health` | 서버/DB 상태 (DB 연결 실패 시 503) | `postgis_lib_version` |
 | GET | `/api/subway/stations` | 지하철역 + 지나는 호선, 환승역 여부 | `ST_Collect`, `ST_Centroid`, `ST_DWithin` |
 
@@ -48,7 +48,13 @@
 OSM에는 역이 노선마다 따로 찍혀 있어 이름으로 묶어 대표점을 만들고, 호선은 두 근거를 합친다.
 1) 노선 관계의 정차역 목록(`subway_line_stop`)에 역 이름이 있음 (괄호 안 별칭도 확인: 총신대입구(이수) → 이수)
 2) 역 점에서 150m 안을 노선이 지나감
-120m면 잠실(8호선)이 빠지고 180m부터는 광화문-1호선처럼 서지 않는 노선이 잡혀 150m로 정했다. (1~9호선만 포함, 신분당선·공항철도 등은 제외)
+120m면 잠실(8호선)이 빠지고 180m부터는 광화문-1호선처럼 서지 않는 노선이 잡혀 150m로 정했다.
+거리 기준은 1~9호선에만 쓰고, 일반철도 노선(경의중앙 등)은 서지 않고 지나가는 경우가 많아 정차역 목록으로만 판단한다.
+
+### 노선을 한 줄로 그리기
+OSM에는 노선이 운행 계통·방향별로 수십 개 관계로 나뉘어 있고(1호선만 84개), 상하행·급행 선로가 나란히 있어 그대로 합치면 여러 줄로 겹쳐 보인다.
+`scripts/osm/convert.js`에서 ① 급행/특급/직통 계통 제외 ② 같은 계통의 반대 방향 제외 ③ 긴 계통부터 그리면서 이미 그린 선과 30m 안에서 나란한 구간 제외 순서로 정리한다.
+(확인: 노선 길이 ÷ 노선 폭 20m 버퍼의 중심선 길이 ≈ 1.00 → 겹침 없음)
 
 ## 데이터 출처
 - 시설(지하철역·노선, 학교, 병원, 공원): © [OpenStreetMap](https://www.openstreetmap.org/copyright) contributors, ODbL. 2026-11 Overpass API로 수집.

@@ -3,11 +3,12 @@
 import { useCallback, useEffect, useMemo, useState, useSyncExternalStore } from "react";
 import styles from "./explorer.module.css";
 import ServerErrorNotice from "../serverErrorNotice";
+import LineBadge from "../lineBadge";
 import SeoulMap, { classColors, type MapPadding } from "./seoulMap";
 import {
   METRICS,
   POI_LAYERS,
-  SUBWAY_COLORS,
+  SUBWAY_LINES,
   formatMetric,
   getDistrictDetail,
   getDistricts,
@@ -175,12 +176,10 @@ export default function DistrictExplorer() {
           ))}
           {visiblePois.includes("subway") && (
             <>
-              <strong className="d-block small mt-3 mb-2">지하철 노선</strong>
+              <strong className="d-block small mt-3 mb-2">전철 노선</strong>
               <div className={styles.lineLegend}>
-                {Object.entries(SUBWAY_COLORS).map(([ref, color]) => (
-                  <span key={ref} className={styles.lineBadge} style={{ background: color }} title={`${ref}호선`}>
-                    {ref}
-                  </span>
+                {SUBWAY_LINES.map((l) => (
+                  <LineBadge key={l.ref} line={l.ref} size="sm" />
                 ))}
               </div>
               <div className="d-flex align-items-center gap-2 small mt-2 text-secondary">
@@ -321,9 +320,7 @@ export default function DistrictExplorer() {
                       {shownDetail.subwayStations.map((s) => (
                         <span key={s.name} className={styles.station}>
                           {s.lines.map((l) => (
-                            <span key={l} className={styles.lineBadge} style={{ background: SUBWAY_COLORS[l] }}>
-                              {l}
-                            </span>
+                            <LineBadge key={l} line={l} size="sm" />
                           ))}
                           {s.name}
                         </span>

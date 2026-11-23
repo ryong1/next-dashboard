@@ -240,12 +240,6 @@ button.tile:hover {
   font-size: 12px;
 }
 
-.station .lineBadge {
-  width: 16px;
-  height: 16px;
-  font-size: 9.5px;
-}
-
 .rankList {
   max-height: 360px;
   overflow-y: auto;
@@ -372,24 +366,12 @@ button.tile:hover {
   }
 }
 
-/* ---- 지하철 ---- */
-.lineBadge {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 18px;
-  height: 18px;
-  border-radius: 50%;
-  color: #ffffff;
-  font-size: 10.5px;
-  font-weight: 700;
-  line-height: 1;
-}
-
+/* ---- 전철 ---- */
 .lineLegend {
-  display: grid;
-  grid-template-columns: repeat(5, 18px);
-  gap: 5px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  max-width: 200px;
 }
 
 .transferIcon {

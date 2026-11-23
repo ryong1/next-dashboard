@@ -9,6 +9,7 @@ import {
   getPois,
   getSubwayLines,
   getSubwayStations,
+  lineNames,
   type DistrictCollection,
   type DistrictFeature,
   type Metric,
@@ -252,10 +253,10 @@ export default function SeoulMap({
           // geojson 배열 속성은 문자열로 넘어오므로 다시 파싱
           const raw = top.properties.lines;
           const lines: string[] = Array.isArray(raw) ? raw : JSON.parse(String(raw ?? "[]"));
-          sub.textContent = lines.length ? `${lines.join("·")}호선` : "지하철역";
+          sub.textContent = lines.length ? lineNames(lines) : "전철역";
         } else if (top.layer.id === "subway-line") {
           title.textContent = String(top.properties.name);
-          sub.textContent = "지하철 노선";
+          sub.textContent = "전철 노선";
         } else {
           title.textContent = top.properties.name ? String(top.properties.name) : "(이름 없음)";
           sub.textContent = POI_LABEL[String(top.properties.category)] ?? "";

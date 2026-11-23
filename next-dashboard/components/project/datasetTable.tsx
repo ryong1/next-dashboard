@@ -53,7 +53,7 @@ export default function DatasetTable() {
     },
     {
       name: "지하철 노선",
-      count: counts ? `${counts.lines}개 노선 (1~9호선)` : null,
+      count: counts ? `${counts.lines}개 노선 (수도권 전철)` : null,
       source: "OpenStreetMap",
       kind: "라인",
     },
