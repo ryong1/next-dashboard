@@ -1,7 +1,7 @@
 # gis-api
 
 서울시 자치구 경계를 PostGIS에 저장하고 GeoJSON / 공간 분석 결과를 제공하는 Spring Boot 백엔드.
-프론트엔드: [next-dashboard](https://github.com/ryong1/next-dashboard)
+프론트엔드: [next-dashboard](../next-dashboard)
 
 ## 스택
 - Java 17, Spring Boot 4 (Web MVC, JDBC)
