@@ -1,4 +1,4 @@
-package com.example.gisapi;
+package com.example.gisapi.health;
 
 import java.time.Instant;
 import java.util.LinkedHashMap;

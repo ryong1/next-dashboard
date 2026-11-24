@@ -46,6 +46,8 @@ next-dashboard/
 └─ components/common/   LineBadge, ServerStatus, ServerErrorNotice, PageHeader
 
 gis-api/src/main/java/com/example/gisapi/
+├─ GisApiApplication.java      앱 시작점 (최상위에 있어야 하위 패키지를 모두 스캔함)
+├─ district/  analysis/  health/   기능별 API (/api/districts·subway·pois, /api/analysis, /api/health)
 ├─ common/                     여러 기능이 같이 쓰는 형태·상수·설정
 │  ├─ DistrictRef.java         {code, name} 공통 응답 형태
 │  ├─ PoiCategory.java         시설 분류 상수
