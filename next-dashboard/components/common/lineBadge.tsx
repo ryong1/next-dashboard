@@ -1,4 +1,4 @@
-import { lineOf } from "../common/district";
+import { lineOf } from "../../common/constants/subwayLines";
 import styles from "./lineBadge.module.css";
 
 // 밝은 노선색(우이신설, 경의중앙, 수인분당 등) 위에서는 흰 글자가 안 보이므로 어두운 글자로

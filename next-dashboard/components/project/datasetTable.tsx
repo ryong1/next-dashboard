@@ -1,46 +1,26 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import ServerErrorNotice from "../serverErrorNotice";
-import { getDistrictSummary, getSubwayLines, getSubwayStations, type DistrictSummary } from "../../common/district";
+import ServerErrorNotice from "../common/serverErrorNotice";
+import { getDistrictSummary, getSubwayLines, getSubwayStations } from "../../common/api/gisApi";
+import { useApiData } from "../../common/hooks/useApiData";
 
-type Counts = {
-  summary: DistrictSummary;
-  lines: number;
-  stations: number;
-  transfers: number;
-};
+// 백엔드(gis-api)에 실제로 들어 있는 데이터 개수
+async function loadCounts() {
+  const [summary, lines, stations] = await Promise.all([getDistrictSummary(), getSubwayLines(), getSubwayStations()]);
+  return {
+    summary,
+    lines: lines.features.length,
+    stations: stations.features.length,
+    transfers: stations.features.filter((f) => f.properties?.transfer).length,
+  };
+}
 
 // 백엔드(gis-api)에 실제로 들어 있는 데이터 개수를 그대로 보여준다
 export default function DatasetTable() {
-  const [counts, setCounts] = useState<Counts | null>(null);
-  const [error, setError] = useState<unknown>(null);
-  const [reloadKey, setReloadKey] = useState(0);
-
-  useEffect(() => {
-    Promise.all([getDistrictSummary(), getSubwayLines(), getSubwayStations()])
-      .then(([summary, lines, stations]) =>
-        setCounts({
-          summary,
-          lines: lines.features.length,
-          stations: stations.features.length,
-          transfers: stations.features.filter((f) => f.properties?.transfer).length,
-        }),
-      )
-      .catch((e) => setError(e));
-  }, [reloadKey]);
+  const { data: counts, error, retry } = useApiData(loadCounts);
 
   if (error) {
-    return (
-      <ServerErrorNotice
-        error={error}
-        what="데이터셋 정보"
-        onRetry={() => {
-          setError(null);
-          setReloadKey((k) => k + 1);
-        }}
-      />
-    );
+    return <ServerErrorNotice error={error} what="데이터셋 정보" onRetry={retry} />;
   }
 
   const t = counts?.summary.totals;

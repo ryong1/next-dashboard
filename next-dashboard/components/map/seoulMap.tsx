@@ -3,20 +3,12 @@
 import { useEffect, useRef, useState } from "react";
 import type { ExpressionSpecification, GeoJSONSource, Map as MlMap } from "maplibre-gl";
 import "maplibre-gl/dist/maplibre-gl.css";
-import {
-  POI_LAYERS,
-  formatDistance,
-  formatMetric,
-  getPois,
-  getSubwayLines,
-  getSubwayStations,
-  lineNames,
-  type DistrictCollection,
-  type DistrictFeature,
-  type Metric,
-  type PoiCategory,
-  type RadiusResult,
-} from "../../common/district";
+import { getPois, getSubwayLines, getSubwayStations } from "../../common/api/gisApi";
+import { POI_LAYERS } from "../../common/constants/mapLayers";
+import { lineNames } from "../../common/constants/subwayLines";
+import type { Metric } from "../../common/constants/metrics";
+import { formatDistance, formatMetric } from "../../common/utils/format";
+import type { DistrictCollection, DistrictFeature, PoiCategory, RadiusResult } from "../../common/types";
 
 // API 키가 필요 없는 무료 배경지도 (OpenFreeMap)
 const BASE_STYLE = "https://tiles.openfreemap.org/styles/positron";

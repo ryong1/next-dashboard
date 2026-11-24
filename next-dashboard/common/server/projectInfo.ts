@@ -2,7 +2,7 @@ import { execFileSync } from "node:child_process";
 import { readFileSync } from "node:fs";
 import path from "node:path";
 import { cacheLife } from "next/cache";
-import pkg from "../package.json";
+import pkg from "../../package.json";
 
 // 프로젝트 페이지용 실제 데이터: Git 커밋 기록 + 빌드 설정 파일
 // (서버에서만 실행. 결과는 캐시되어 빌드 시점 / 몇 분 단위로만 다시 읽음)

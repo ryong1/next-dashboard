@@ -1,46 +1,28 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState, useSyncExternalStore } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import styles from "./explorer.module.css";
-import ServerErrorNotice from "../serverErrorNotice";
-import LineBadge from "../lineBadge";
+import controls from "../../common/styles/controls.module.css";
+import ServerErrorNotice from "../common/serverErrorNotice";
+import LineBadge from "../common/lineBadge";
 import SeoulMap, { classColors, type MapPadding } from "./seoulMap";
 import RadiusPanel from "./radiusPanel";
-import {
-  METRICS,
-  POI_LAYERS,
-  RADIUS_OPTIONS,
-  SUBWAY_LINES,
-  formatDistance,
-  formatMetric,
-  getDistrictDetail,
-  getRadiusAnalysis,
-  getDistricts,
-  getDistrictSummary,
-  metricOf,
-  quantileBreaks,
-  type DistrictCollection,
-  type DistrictDetail,
-  type DistrictSummary,
-  type MetricKey,
-  type PoiCategory,
-  type RadiusResult,
-} from "../../common/district";
+import { getDistrictDetail, getDistricts, getDistrictSummary, getRadiusAnalysis } from "../../common/api/gisApi";
+import { METRICS, metricOf, type MetricKey } from "../../common/constants/metrics";
+import { POI_LAYERS, RADIUS_OPTIONS } from "../../common/constants/mapLayers";
+import { SUBWAY_LINES } from "../../common/constants/subwayLines";
+import { formatDistance, formatMetric, formatNumber } from "../../common/utils/format";
+import { quantileBreaks } from "../../common/utils/quantile";
+import { useApiData } from "../../common/hooks/useApiData";
+import { useIsDesktop } from "../../common/hooks/useIsDesktop";
+import type { DistrictDetail, PoiCategory, RadiusResult } from "../../common/types";
 
 const analysisKey = (point: [number, number], r: number) => `${point[0].toFixed(6)},${point[1].toFixed(6)},${r}`;
 
-// lg(992px) 이상이면 패널이 지도 위에 떠 있는 레이아웃
-const DESKTOP_QUERY = "(min-width: 992px)";
-function useIsDesktop() {
-  return useSyncExternalStore(
-    (onChange) => {
-      const mq = window.matchMedia(DESKTOP_QUERY);
-      mq.addEventListener("change", onChange);
-      return () => mq.removeEventListener("change", onChange);
-    },
-    () => window.matchMedia(DESKTOP_QUERY).matches,
-    () => false,
-  );
+// 화면이 열릴 때 필요한 데이터: 구 경계(+집계)와 서울 요약
+async function loadMapData() {
+  const [geo, summary] = await Promise.all([getDistricts(), getDistrictSummary()]);
+  return { geo, summary };
 }
 
 // 떠 있는 패널이 가리는 영역 (explorer.module.css의 크기와 맞춤, 조작 카드가 두 줄이 되는 경우까지 고려)
@@ -48,10 +30,10 @@ const DESKTOP_PADDING: MapPadding = { top: 260, right: 380, bottom: 32, left: 32
 const MOBILE_PADDING: MapPadding = { top: 16, right: 16, bottom: 16, left: 16 };
 
 export default function DistrictExplorer() {
-  const [data, setData] = useState<DistrictCollection | null>(null);
-  const [summary, setSummary] = useState<DistrictSummary | null>(null);
-  const [error, setError] = useState<unknown>(null);
-  const [reloadKey, setReloadKey] = useState(0);
+  const { data: loaded, error: loadError, retry } = useApiData(loadMapData);
+  const data = loaded?.geo ?? null;
+  const summary = loaded?.summary ?? null;
+  const [detailError, setDetailError] = useState<unknown>(null);
   const [selectedCode, setSelectedCode] = useState<string | null>(null);
   const [detail, setDetail] = useState<DistrictDetail | null>(null);
   const [metricKey, setMetricKey] = useState<MetricKey>("areaKm2");
@@ -96,20 +78,11 @@ export default function DistrictExplorer() {
   const handleAnalyze = useCallback((lng: number, lat: number) => setPoint([lng, lat]), []);
 
   useEffect(() => {
-    Promise.all([getDistricts(), getDistrictSummary()])
-      .then(([geo, sum]) => {
-        setData(geo);
-        setSummary(sum);
-      })
-      .catch((e) => setError(e));
-  }, [reloadKey]);
-
-  useEffect(() => {
     if (!selectedCode) return;
     let ignore = false;
     getDistrictDetail(selectedCode)
       .then((d) => !ignore && setDetail(d))
-      .catch((e) => !ignore && setError(e));
+      .catch((e) => !ignore && setDetailError(e));
     return () => {
       ignore = true;
     };
@@ -145,6 +118,7 @@ export default function DistrictExplorer() {
   // 선택이 바뀌면 이전 상세는 보여주지 않음
   const shownDetail = detail && detail.code === selectedCode ? detail : null;
 
+  const error = loadError ?? detailError;
   if (error) {
     return (
       <div className="p-4">
@@ -152,8 +126,8 @@ export default function DistrictExplorer() {
           error={error}
           what="지도 데이터"
           onRetry={() => {
-            setError(null);
-            setReloadKey((k) => k + 1);
+            setDetailError(null);
+            retry();
           }}
         />
       </div>
@@ -173,7 +147,7 @@ export default function DistrictExplorer() {
     : [];
 
   const colors = classColors(metric, breaks);
-  const fmt = (v: number) => v.toLocaleString(undefined, { maximumFractionDigits: metric.decimals });
+  const fmt = (v: number) => formatNumber(v, metric.decimals);
   const legend = colors.map((color, i) => {
     let text = "전체";
     if (breaks.length) {
@@ -265,7 +239,7 @@ export default function DistrictExplorer() {
                 <button
                   key={m.key}
                   type="button"
-                  className={`${styles.segment} ${m.key === metricKey ? styles.segmentActive : ""}`}
+                  className={`${controls.segment} ${m.key === metricKey ? controls.segmentActive : ""}`}
                   aria-pressed={m.key === metricKey}
                   onClick={() => setMetricKey(m.key)}
                 >
@@ -283,7 +257,7 @@ export default function DistrictExplorer() {
                   <button
                     key={p.key}
                     type="button"
-                    className={`${styles.segment} ${on ? styles.segmentOn : ""}`}
+                    className={`${controls.segment} ${on ? controls.segmentOn : ""}`}
                     aria-pressed={on}
                     onClick={() => togglePoi(p.key)}
                   >
@@ -291,7 +265,7 @@ export default function DistrictExplorer() {
                       <span className="spinner-border" style={{ width: 10, height: 10, borderWidth: 2 }} />
                     ) : (
                       <span
-                        className={styles.dot}
+                        className={controls.dot}
                         style={{
                           background:
                             p.key === "subway"
@@ -311,7 +285,7 @@ export default function DistrictExplorer() {
             <div className="d-flex flex-wrap gap-1">
               <button
                 type="button"
-                className={`${styles.segment} ${analyzeMode ? styles.segmentActive : ""}`}
+                className={`${controls.segment} ${analyzeMode ? controls.segmentActive : ""}`}
                 aria-pressed={analyzeMode}
                 onClick={toggleAnalyze}
               >
@@ -322,7 +296,7 @@ export default function DistrictExplorer() {
                   <button
                     key={r}
                     type="button"
-                    className={`${styles.segment} ${r === radius ? styles.segmentOn : ""}`}
+                    className={`${controls.segment} ${r === radius ? controls.segmentOn : ""}`}
                     aria-pressed={r === radius}
                     onClick={() => setRadius(r)}
                   >
@@ -398,7 +372,7 @@ export default function DistrictExplorer() {
                     </p>
                     <div className="d-flex flex-wrap gap-1 mb-3">
                       {shownDetail.subwayStations.map((s) => (
-                        <span key={s.name} className={styles.station}>
+                        <span key={s.name} className={controls.station}>
                           {s.lines.map((l) => (
                             <LineBadge key={l} line={l} size="sm" />
                           ))}

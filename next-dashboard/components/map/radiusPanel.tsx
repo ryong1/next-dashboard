@@ -1,8 +1,10 @@
 "use client";
 
 import styles from "./explorer.module.css";
-import LineBadge from "../lineBadge";
-import { formatDistance, type RadiusResult } from "../../common/district";
+import controls from "../../common/styles/controls.module.css";
+import LineBadge from "../common/lineBadge";
+import { formatDistance } from "../../common/utils/format";
+import type { RadiusResult } from "../../common/types";
 
 type Props = {
   point: [number, number] | null;
@@ -67,13 +69,13 @@ export default function RadiusPanel({ point, radius, result, loading, error, onE
             </div>
             <div className={styles.tile}>
               <span className="d-flex align-items-center gap-1 small text-secondary">
-                <span className={styles.dot} style={{ background: "#6f42c1" }} /> 학교
+                <span className={controls.dot} style={{ background: "#6f42c1" }} /> 학교
               </span>
               <strong className="d-block">{result.counts.school}곳</strong>
             </div>
             <div className={styles.tile}>
               <span className="d-flex align-items-center gap-1 small text-secondary">
-                <span className={styles.dot} style={{ background: "#d63939" }} /> 병원
+                <span className={controls.dot} style={{ background: "#d63939" }} /> 병원
               </span>
               <strong className="d-block">{result.counts.hospital}곳</strong>
             </div>

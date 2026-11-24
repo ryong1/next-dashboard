@@ -8,6 +8,10 @@ import java.util.Optional;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Repository;
 
+import com.example.gisapi.common.DistrictRef;
+import com.example.gisapi.common.GeoJson;
+import com.example.gisapi.common.SqlUtils;
+
 /**
  * PostGIS 공간 쿼리 모음. 면적/둘레는 geography로 변환해 실제 거리(m) 기준으로 계산한다.
  * 시설 집계는 district_stats(materialized view)에서 읽는다.
@@ -40,30 +44,23 @@ public class DistrictRepository {
 
     /** 전체 구를 GeoJSON FeatureCollection 문자열로 반환 (PostGIS에서 JSON까지 생성). */
     public String findAllAsGeoJson() {
-        return jdbc.queryForObject("""
-                SELECT json_build_object(
-                         'type', 'FeatureCollection',
-                         'features', COALESCE(json_agg(json_build_object(
-                             'type', 'Feature',
-                             'id', d.code::int,
-                             'geometry', ST_AsGeoJSON(d.geom, 6)::json,
-                             'properties', json_build_object(
-                                 'code', d.code,
-                                 'name', d.name,
-                                 'nameEng', d.name_eng,
-                                 'areaKm2', round(s.area_km2::numeric, 2),
-                                 'subway', s.subway_count,
-                                 'school', s.school_count,
-                                 'hospital', s.hospital_count,
-                                 'park', s.park_count,
-                                 'parkAreaKm2', round(s.park_area_km2::numeric, 2),
-                                 'parkRatio', round((s.park_area_km2 / s.area_km2 * 100)::numeric, 1)
-                             )
-                         ) ORDER BY d.code), '[]'::json)
-                       )::text
+        String feature = GeoJson.feature("d.code::int", "d.geom", """
+                json_build_object(
+                    'code', d.code,
+                    'name', d.name,
+                    'nameEng', d.name_eng,
+                    'areaKm2', round(s.area_km2::numeric, 2),
+                    'subway', s.subway_count,
+                    'school', s.school_count,
+                    'hospital', s.hospital_count,
+                    'park', s.park_count,
+                    'parkAreaKm2', round(s.park_area_km2::numeric, 2),
+                    'parkRatio', round((s.park_area_km2 / s.area_km2 * 100)::numeric, 1)
+                )""");
+        return jdbc.queryForObject(GeoJson.featureCollectionSql(feature, "d.code", """
                 FROM district d
                 JOIN district_stats s ON s.code = d.code
-                """, String.class);
+                """), String.class);
     }
 
     public Optional<DistrictDetail> findDetail(String code) {
@@ -101,14 +98,12 @@ public class DistrictRepository {
                 WHERE d.code = ?
                 ORDER BY st.name
                 """,
-                (rs, i) -> new SubwayStation(
-                        rs.getString("name"),
-                        List.of((String[]) rs.getArray("lines").getArray())),
+                (rs, i) -> new SubwayStation(rs.getString("name"), SqlUtils.textList(rs, "lines")),
                 code);
     }
 
     /** 경계가 맞닿은 구 (단순화된 경계라 오차를 감안해 100m 이내면 이웃으로 본다). */
-    private List<DistrictDetail.Neighbor> findNeighbors(String code) {
+    private List<DistrictRef> findNeighbors(String code) {
         return jdbc.query("""
                 SELECT b.code, b.name
                 FROM district a
@@ -117,17 +112,17 @@ public class DistrictRepository {
                 WHERE a.code = ?
                 ORDER BY b.name
                 """,
-                (rs, i) -> new DistrictDetail.Neighbor(rs.getString("code"), rs.getString("name")),
+                (rs, i) -> new DistrictRef(rs.getString("code"), rs.getString("name")),
                 code);
     }
 
-    /** 경위도 좌표가 속한 구 */
-    public Optional<DistrictDetail.Neighbor> findContaining(double lng, double lat) {
+    /** 경위도 좌표가 속한 구 (구 위치 찾기 API와 반경 분석이 함께 사용) */
+    public Optional<DistrictRef> findContaining(double lng, double lat) {
         return jdbc.query("""
                 SELECT code, name FROM district
                 WHERE ST_Contains(geom, ST_SetSRID(ST_MakePoint(?, ?), 4326))
                 """,
-                (rs, i) -> new DistrictDetail.Neighbor(rs.getString("code"), rs.getString("name")),
+                (rs, i) -> new DistrictRef(rs.getString("code"), rs.getString("name")),
                 lng, lat).stream().findFirst();
     }
 

@@ -101,44 +101,7 @@
   letter-spacing: 0.5px;
 }
 
-.segment {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  padding: 5px 12px;
-  border: 1px solid #e3e8f2;
-  border-radius: 999px;
-  background: #ffffff;
-  color: #4a5568;
-  font-size: 13px;
-  transition: background-color 0.15s, color 0.15s, border-color 0.15s;
-}
-
-.segment:hover {
-  background: #f3f5fb;
-}
-
-.segmentActive,
-.segmentActive:hover {
-  border-color: #425fbe;
-  background: #425fbe;
-  color: #ffffff;
-}
-
-.segmentOn,
-.segmentOn:hover {
-  border-color: #c9d3f0;
-  background: #edf1ff;
-  color: #2b4396;
-  font-weight: 600;
-}
-
-.dot {
-  display: inline-block;
-  width: 10px;
-  height: 10px;
-  border-radius: 50%;
-}
+/* 버튼(segment)·색 점(dot)·역 칩(station)은 common/styles/controls.module.css */
 
 /* ---- 범례 ---- */
 .legend {
@@ -226,18 +189,6 @@ button.tile:hover {
   margin-top: 2px;
   color: #6b7a99;
   font-size: 11px;
-}
-
-.station {
-  display: inline-flex;
-  align-items: center;
-  gap: 3px;
-  padding: 3px 9px 3px 4px;
-  border: 1px solid #e6eaf2;
-  border-radius: 999px;
-  background: #ffffff;
-  color: #1f2a44;
-  font-size: 12px;
 }
 
 .rankList {

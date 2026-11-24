@@ -2,6 +2,8 @@ package com.example.gisapi.district;
 
 import java.util.List;
 
+import com.example.gisapi.common.DistrictRef;
+
 /** 구 상세 정보. center는 [경도, 위도]. */
 public record DistrictDetail(
         String code,
@@ -12,8 +14,5 @@ public record DistrictDetail(
         double[] center,
         DistrictStats stats,
         List<SubwayStation> subwayStations,
-        List<Neighbor> neighbors) {
-
-    public record Neighbor(String code, String name) {
-    }
+        List<DistrictRef> neighbors) {
 }

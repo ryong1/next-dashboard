@@ -3,7 +3,7 @@ package com.example.gisapi.analysis;
 import java.util.List;
 import java.util.Map;
 
-import com.example.gisapi.district.DistrictDetail;
+import com.example.gisapi.common.DistrictRef;
 
 /**
  * 반경 분석 결과.
@@ -12,7 +12,7 @@ import com.example.gisapi.district.DistrictDetail;
 public record RadiusResult(
         double[] center,
         int radius,
-        DistrictDetail.Neighbor district,
+        DistrictRef district,
         double circleAreaKm2,
         Counts counts,
         double parkAreaKm2,

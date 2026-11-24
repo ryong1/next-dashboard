@@ -2,7 +2,6 @@ package com.example.gisapi.district;
 
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
-import java.util.List;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -12,6 +11,8 @@ import org.springframework.core.io.ResourceLoader;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Component;
 
+import com.example.gisapi.common.PoiCategory;
+
 /**
  * 앱 시작 시 비어 있는 테이블에 GeoJSON 데이터를 적재하고, 구별 집계(district_stats)를 갱신한다.
  * GeoJSON 파싱은 PostGIS(ST_GeomFromGeoJSON)가 직접 처리한다.
@@ -20,9 +21,6 @@ import org.springframework.stereotype.Component;
 public class GisDataLoader implements ApplicationRunner {
 
     private static final Logger log = LoggerFactory.getLogger(GisDataLoader.class);
-
-    /** OSM 시설 분류 (resources/data/osm/{category}.geojson) */
-    public static final List<String> POI_CATEGORIES = List.of("subway", "school", "hospital", "park");
 
     private static final String INSERT_DISTRICTS = """
             INSERT INTO district (code, name, name_eng, geom)
@@ -79,7 +77,7 @@ public class GisDataLoader implements ApplicationRunner {
             changed = true;
         }
 
-        for (String category : POI_CATEGORIES) {
+        for (String category : PoiCategory.ALL) {
             if (count("SELECT count(*) FROM poi WHERE category = '" + category + "'") > 0) continue;
             String json = read("classpath:data/osm/" + category + ".geojson");
             int n = jdbc.update(INSERT_POIS, category, category, json);

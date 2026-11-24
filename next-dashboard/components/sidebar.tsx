@@ -2,7 +2,7 @@
 import Link from "next/link";
 import styles from "../app/page.module.css";
 import SidebarNav from "./sidebarNav";
-import ServerStatus from "./serverStatus";
+import ServerStatus from "./common/serverStatus";
 
 export default function Sidebar() {
   return (

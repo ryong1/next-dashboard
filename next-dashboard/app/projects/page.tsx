@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
-import PageHeader from "../../components/pageHeader";
+import PageHeader from "../../components/common/pageHeader";
 import DatasetTable from "../../components/project/datasetTable";
-import { getProjectInfo, type Part } from "../../common/projectInfo";
+import { getProjectInfo, type Part } from "../../common/server/projectInfo";
 import styles from "../page.module.css";
 
 export const metadata: Metadata = { title: "프로젝트" };

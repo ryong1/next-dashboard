@@ -1,0 +1,58 @@
+/* 여러 화면이 같이 쓰는 작은 조작 요소: 알약 버튼, 색 점, 역 칩 */
+
+/* 알약 모양 선택 버튼 (지표 선택, 시설 표시, 반경 선택 등) */
+.segment {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 12px;
+  border: 1px solid #e3e8f2;
+  border-radius: 999px;
+  background: #ffffff;
+  color: #4a5568;
+  font-size: 13px;
+  transition: background-color 0.15s, color 0.15s, border-color 0.15s;
+}
+
+.segment:hover {
+  background: #f3f5fb;
+}
+
+/* 하나만 고르는 선택 (진한 파랑) */
+.segmentActive,
+.segmentActive:hover {
+  border-color: #425fbe;
+  background: #425fbe;
+  color: #ffffff;
+}
+
+/* 여러 개 켜고 끄는 토글 (연한 파랑) */
+.segmentOn,
+.segmentOn:hover {
+  border-color: #c9d3f0;
+  background: #edf1ff;
+  color: #2b4396;
+  font-weight: 600;
+}
+
+/* 범례·버튼 앞의 색 점 */
+.dot {
+  display: inline-block;
+  flex-shrink: 0;
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+}
+
+/* 노선 배지 + 역 이름 칩 */
+.station {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  padding: 3px 9px 3px 4px;
+  border: 1px solid #e6eaf2;
+  border-radius: 999px;
+  background: #ffffff;
+  color: #1f2a44;
+  font-size: 12px;
+}

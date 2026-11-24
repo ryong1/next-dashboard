@@ -4,15 +4,16 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
-import org.springframework.http.HttpStatus;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
-import org.springframework.web.server.ResponseStatusException;
 
-import com.example.gisapi.district.DistrictDetail;
+import com.example.gisapi.common.ApiErrors;
+import com.example.gisapi.common.DistrictRef;
+import com.example.gisapi.common.SqlUtils;
+import com.example.gisapi.district.DistrictRepository;
 
 /**
  * 반경 분석: 한 지점에서 반경 r(m) 안의 전철역/학교/병원/공원을 집계한다.
@@ -33,9 +34,11 @@ public class RadiusAnalysisController {
     }
 
     private final JdbcTemplate jdbc;
+    private final DistrictRepository districts;
 
-    public RadiusAnalysisController(JdbcTemplate jdbc) {
+    public RadiusAnalysisController(JdbcTemplate jdbc, DistrictRepository districts) {
         this.jdbc = jdbc;
+        this.districts = districts;
     }
 
     /** /api/analysis/radius?lng=127.0276&lat=37.4979&r=500 */
@@ -43,21 +46,15 @@ public class RadiusAnalysisController {
     public RadiusResult radius(@RequestParam double lng, @RequestParam double lat,
             @RequestParam(defaultValue = "500") int r) {
         if (r < MIN_RADIUS || r > MAX_RADIUS) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
-                    "반경은 " + MIN_RADIUS + "~" + MAX_RADIUS + "m 사이여야 합니다");
+            throw ApiErrors.badRequest("반경은 " + MIN_RADIUS + "~" + MAX_RADIUS + "m 사이여야 합니다");
         }
         // 서울 주변이 아닌 좌표는 거절 (오입력 방지)
         if (lng < 126.6 || lng > 127.4 || lat < 37.3 || lat > 37.8) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "서울 주변 좌표가 아닙니다");
+            throw ApiErrors.badRequest("서울 주변 좌표가 아닙니다");
         }
         double pad = degPad(r);
 
-        DistrictDetail.Neighbor district = jdbc.query("""
-                SELECT code, name FROM district
-                WHERE ST_Contains(geom, ST_SetSRID(ST_MakePoint(?, ?), 4326))
-                """,
-                (rs, i) -> new DistrictDetail.Neighbor(rs.getString("code"), rs.getString("name")),
-                lng, lat).stream().findFirst().orElse(null);
+        DistrictRef district = districts.findContaining(lng, lat).orElse(null);
 
         List<RadiusResult.StationHit> stations = jdbc.query("""
                 WITH c AS (SELECT ST_SetSRID(ST_MakePoint(?, ?), 4326) AS pt)
@@ -71,7 +68,7 @@ public class RadiusAnalysisController {
                 """,
                 (rs, i) -> new RadiusResult.StationHit(
                         rs.getString("name"),
-                        List.of((String[]) rs.getArray("lines").getArray()),
+                        SqlUtils.textList(rs, "lines"),
                         rs.getInt("d"), rs.getDouble("x"), rs.getDouble("y")),
                 lng, lat, pad, r);
 
@@ -124,8 +121,8 @@ public class RadiusAnalysisController {
 
         return new RadiusResult(
                 new double[] { lng, lat }, r, district,
-                round(circleKm2, 3), counts,
-                round(parkKm2, 3), round(circleKm2 > 0 ? parkKm2 / circleKm2 * 100 : 0, 1),
+                SqlUtils.round(circleKm2, 3), counts,
+                SqlUtils.round(parkKm2, 3), SqlUtils.round(circleKm2 > 0 ? parkKm2 / circleKm2 * 100 : 0, 1),
                 stations, places, nearest);
     }
 
@@ -157,10 +154,5 @@ public class RadiusAnalysisController {
                 (rs, i) -> new RadiusResult.PlaceHit(category, rs.getString("name"), rs.getInt("d"),
                         rs.getDouble("x"), rs.getDouble("y")),
                 lng, lat, category).stream().findFirst();
-    }
-
-    private static double round(double v, int digits) {
-        double f = Math.pow(10, digits);
-        return Math.round(v * f) / f;
     }
 }

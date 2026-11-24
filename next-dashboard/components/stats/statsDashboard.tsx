@@ -1,16 +1,15 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import styles from "./stats.module.css";
-import ServerErrorNotice from "../serverErrorNotice";
-import LineBadge from "../lineBadge";
-import {
-  SUBWAY_LINES,
-  lineOf,
-  getDistricts,
-  getSubwayStations,
-  type DistrictProperties,
-} from "../../common/district";
+import controls from "../../common/styles/controls.module.css";
+import ServerErrorNotice from "../common/serverErrorNotice";
+import LineBadge from "../common/lineBadge";
+import { getDistricts, getSubwayStations } from "../../common/api/gisApi";
+import { SUBWAY_LINES, lineOf } from "../../common/constants/subwayLines";
+import { formatNumber } from "../../common/utils/format";
+import { useApiData } from "../../common/hooks/useApiData";
+import type { DistrictProperties } from "../../common/types";
 
 type Station = { name: string; lines: string[]; transfer: boolean };
 
@@ -37,31 +36,30 @@ const DENSITY: { key: DensityKey; label: string; unit: string; decimals: number;
   },
 ];
 
-const fmt = (v: number, d: number) => v.toLocaleString(undefined, { minimumFractionDigits: d, maximumFractionDigits: d });
+// 표 안에서 자리수를 맞춰 보여주기 위해 소수 자리를 고정
+const fmt = (v: number, d: number) => formatNumber(v, d, d);
+
+const NO_STATIONS: Station[] = [];
+
+// 구 집계에 밀도(면적당 개수)를 붙이고, 역 목록을 함께 불러온다
+async function loadStats() {
+  const [geo, st] = await Promise.all([getDistricts(), getSubwayStations()]);
+  const rows: Row[] = geo.features.map(({ properties: p }) => ({
+    ...p,
+    subwayDensity: p.subway / p.areaKm2,
+    schoolDensity: p.school / p.areaKm2,
+    hospitalDensity: p.hospital / p.areaKm2,
+  }));
+  const stations = st.features.map((f) => f.properties as Station);
+  return { rows, stations };
+}
 
 export default function StatsDashboard() {
-  const [rows, setRows] = useState<Row[] | null>(null);
-  const [stations, setStations] = useState<Station[]>([]);
-  const [error, setError] = useState<unknown>(null);
-  const [reloadKey, setReloadKey] = useState(0);
+  const { data, error, retry } = useApiData(loadStats);
+  const rows = data?.rows ?? null;
+  const stations = data?.stations ?? NO_STATIONS;
   const [metricKey, setMetricKey] = useState<DensityKey>("subwayDensity");
   const [hover, setHover] = useState<string | null>(null);
-
-  useEffect(() => {
-    Promise.all([getDistricts(), getSubwayStations()])
-      .then(([geo, st]) => {
-        setRows(
-          geo.features.map(({ properties: p }) => ({
-            ...p,
-            subwayDensity: p.subway / p.areaKm2,
-            schoolDensity: p.school / p.areaKm2,
-            hospitalDensity: p.hospital / p.areaKm2,
-          })),
-        );
-        setStations(st.features.map((f) => f.properties as Station));
-      })
-      .catch((e) => setError(e));
-  }, [reloadKey]);
 
   const metric = DENSITY.find((m) => m.key === metricKey)!;
 
@@ -100,16 +98,7 @@ export default function StatsDashboard() {
   );
 
   if (error) {
-    return (
-      <ServerErrorNotice
-        error={error}
-        what="통계 데이터"
-        onRetry={() => {
-          setError(null);
-          setReloadKey((k) => k + 1);
-        }}
-      />
-    );
+    return <ServerErrorNotice error={error} what="통계 데이터" onRetry={retry} />;
   }
 
   if (!rows || !seoul) {
@@ -171,7 +160,7 @@ export default function StatsDashboard() {
                   <button
                     key={m.key}
                     type="button"
-                    className={`${styles.segment} ${m.key === metricKey ? styles.segmentActive : ""}`}
+                    className={`${controls.segment} ${m.key === metricKey ? controls.segmentActive : ""}`}
                     aria-pressed={m.key === metricKey}
                     onClick={() => setMetricKey(m.key)}
                   >
@@ -268,7 +257,7 @@ export default function StatsDashboard() {
               <p className="small text-secondary mb-3">지나는 노선이 많은 순서예요 (수도권 전철 {SUBWAY_LINES.length}개 노선 기준).</p>
               <div className="d-flex flex-wrap gap-1">
                 {transfers.map((s) => (
-                  <span key={s.name} className={styles.station}>
+                  <span key={s.name} className={controls.station}>
                     {s.lines.map((l) => (
                       <LineBadge key={l} line={l} size="sm" />
                     ))}

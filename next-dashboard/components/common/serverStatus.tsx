@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { checkHealth, type HealthState } from "../common/api";
+import { checkHealth, type HealthState } from "../../common/api/client";
 
 const LABEL: Record<HealthState["state"], string> = {
   up: "API 연결됨",

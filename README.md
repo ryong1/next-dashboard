@@ -26,5 +26,30 @@
    브라우저의 `/api/*` 요청은 Next.js rewrites로 백엔드(8080)에 전달된다.
 
 ## 주요 화면
-- `/` 대시보드
-- `/map` 서울시 자치구 지도: 면적·지하철역·학교·병원·공원 비율 중 기준을 골라 단계구분도로 표시, 시설 위치 레이어, 구 클릭 시 상세(순위·지하철역·이웃 구), 지표별 순위
+- `/` 서울시 자치구 지도: 지표별 단계구분도, 시설·전철 노선 레이어, 구 상세, 반경 분석
+- `/projects` Git 기록 기반 프로젝트 현황
+- `/statistics` 구별 시설 밀도 통계
+
+## 코드 구조: 공통 코드(common)
+각 프로젝트 안에서 여러 곳이 같이 쓰는 코드는 `common`에 모은다.
+
+```
+next-dashboard/
+├─ common/
+│  ├─ api/          client.ts (fetch·오류·서버 상태), gisApi.ts (엔드포인트 호출)
+│  ├─ types.ts      API 응답 타입
+│  ├─ constants/    metrics.ts (지도 지표), subwayLines.ts (노선 19개), mapLayers.ts (시설 레이어·반경)
+│  ├─ utils/        format.ts (숫자·거리 표기), quantile.ts (5분위 경계)
+│  ├─ hooks/        useApiData.ts (불러오기+다시 시도), useIsDesktop.ts
+│  ├─ styles/       controls.module.css (알약 버튼·색 점·역 칩)
+│  └─ server/       projectInfo.ts (서버 전용: git log, 빌드 설정)
+└─ components/common/   LineBadge, ServerStatus, ServerErrorNotice, PageHeader
+
+gis-api/src/main/java/com/example/gisapi/common/
+├─ GeoJson.java             GeoJSON 응답용 SQL 조각, Content-Type
+├─ DistrictRef.java         {code, name} 공통 응답 형태
+├─ PoiCategory.java         시설 분류 상수
+├─ SqlUtils.java            text[] → List, 반올림
+├─ ApiErrors.java           badRequest / notFound
+└─ ApiExceptionHandler.java 모든 오류 응답을 {timestamp, status, error, message, path}로 통일
+```

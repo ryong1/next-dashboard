@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import PageHeader from "../../components/pageHeader";
+import PageHeader from "../../components/common/pageHeader";
 import StatsDashboard from "../../components/stats/statsDashboard";
 import styles from "../page.module.css";
 

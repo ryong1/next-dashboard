@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { ApiError, checkHealth, type HealthState } from "../common/api";
+import { ApiError, checkHealth, type HealthState } from "../../common/api/client";
 
 type Props = {
   error: unknown;
