@@ -5,7 +5,7 @@ import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
-import com.example.gisapi.common.GeoJson;
+import com.example.gisapi.util.GeoJson;
 
 /** 지하철 노선도 레이어용 GeoJSON */
 @RestController

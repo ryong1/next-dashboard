@@ -6,9 +6,9 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
-import com.example.gisapi.common.ApiErrors;
-import com.example.gisapi.common.GeoJson;
 import com.example.gisapi.common.PoiCategory;
+import com.example.gisapi.util.ApiErrors;
+import com.example.gisapi.util.GeoJson;
 
 /** OSM 시설 위치 (지도 레이어용 GeoJSON) */
 @RestController

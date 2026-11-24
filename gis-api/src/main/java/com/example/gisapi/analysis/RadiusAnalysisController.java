@@ -10,10 +10,11 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
-import com.example.gisapi.common.ApiErrors;
 import com.example.gisapi.common.DistrictRef;
-import com.example.gisapi.common.SqlUtils;
 import com.example.gisapi.district.DistrictRepository;
+import com.example.gisapi.util.ApiErrors;
+import com.example.gisapi.util.GeoUtils;
+import com.example.gisapi.util.SqlUtils;
 
 /**
  * 반경 분석: 한 지점에서 반경 r(m) 안의 전철역/학교/병원/공원을 집계한다.
@@ -27,11 +28,6 @@ public class RadiusAnalysisController {
 
     private static final int MIN_RADIUS = 100;
     private static final int MAX_RADIUS = 3000;
-
-    // 반경(m) → 인덱스 후보용 사각형 여유(도). 서울 위도에서 경도 1도 ≈ 88km라 넉넉히 80km로 나눔
-    private static double degPad(int radius) {
-        return radius / 80_000.0;
-    }
 
     private final JdbcTemplate jdbc;
     private final DistrictRepository districts;
@@ -49,10 +45,10 @@ public class RadiusAnalysisController {
             throw ApiErrors.badRequest("반경은 " + MIN_RADIUS + "~" + MAX_RADIUS + "m 사이여야 합니다");
         }
         // 서울 주변이 아닌 좌표는 거절 (오입력 방지)
-        if (lng < 126.6 || lng > 127.4 || lat < 37.3 || lat > 37.8) {
+        if (!GeoUtils.isNearSeoul(lng, lat)) {
             throw ApiErrors.badRequest("서울 주변 좌표가 아닙니다");
         }
-        double pad = degPad(r);
+        double pad = GeoUtils.metersToDegreePadding(r);
 
         DistrictRef district = districts.findContaining(lng, lat).orElse(null);
 

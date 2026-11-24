@@ -9,8 +9,8 @@ import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Repository;
 
 import com.example.gisapi.common.DistrictRef;
-import com.example.gisapi.common.GeoJson;
-import com.example.gisapi.common.SqlUtils;
+import com.example.gisapi.util.GeoJson;
+import com.example.gisapi.util.SqlUtils;
 
 /**
  * PostGIS 공간 쿼리 모음. 면적/둘레는 geography로 변환해 실제 거리(m) 기준으로 계산한다.

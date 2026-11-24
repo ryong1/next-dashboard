@@ -7,9 +7,9 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
-import com.example.gisapi.common.ApiErrors;
 import com.example.gisapi.common.DistrictRef;
-import com.example.gisapi.common.GeoJson;
+import com.example.gisapi.util.ApiErrors;
+import com.example.gisapi.util.GeoJson;
 
 @RestController
 @RequestMapping("/api/districts")

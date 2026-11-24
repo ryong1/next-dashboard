@@ -1,4 +1,4 @@
-package com.example.gisapi.common;
+package com.example.gisapi.util;
 
 import java.sql.Array;
 import java.sql.ResultSet;

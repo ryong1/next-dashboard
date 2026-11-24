@@ -1,4 +1,4 @@
-package com.example.gisapi.common;
+package com.example.gisapi.util;
 
 /**
  * GeoJSON 응답을 PostgreSQL에서 바로 만들기 위한 SQL 조각 모음.

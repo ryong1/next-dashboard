@@ -45,11 +45,14 @@ next-dashboard/
 │  └─ server/       projectInfo.ts (서버 전용: git log, 빌드 설정)
 └─ components/common/   LineBadge, ServerStatus, ServerErrorNotice, PageHeader
 
-gis-api/src/main/java/com/example/gisapi/common/
-├─ GeoJson.java             GeoJSON 응답용 SQL 조각, Content-Type
-├─ DistrictRef.java         {code, name} 공통 응답 형태
-├─ PoiCategory.java         시설 분류 상수
-├─ SqlUtils.java            text[] → List, 반올림
-├─ ApiErrors.java           badRequest / notFound
-└─ ApiExceptionHandler.java 모든 오류 응답을 {timestamp, status, error, message, path}로 통일
+gis-api/src/main/java/com/example/gisapi/
+├─ common/                     여러 기능이 같이 쓰는 형태·상수·설정
+│  ├─ DistrictRef.java         {code, name} 공통 응답 형태
+│  ├─ PoiCategory.java         시설 분류 상수
+│  └─ ApiExceptionHandler.java 모든 오류 응답을 {timestamp, status, error, message, path}로 통일
+└─ util/                       상태 없는 정적 도우미 함수
+   ├─ GeoJson.java             GeoJSON 응답용 SQL 조각, Content-Type
+   ├─ GeoUtils.java            서울 주변 좌표 판정, 반경(m) → 인덱스 후보용 도 단위 여유값
+   ├─ SqlUtils.java            text[] → List, 반올림
+   └─ ApiErrors.java           badRequest / notFound
 ```
